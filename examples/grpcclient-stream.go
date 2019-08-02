@@ -68,7 +68,7 @@ func main() {
 			wg.Add(1)
 			request := &odrpc.DetectRequest{
 				Id:           fmt.Sprintf("%d", x),
-				DetectorName: "edgetpu",
+				DetectorName: "default",
 				Data:         img,
 				Detect: map[string]float32{
 					"*": 50, //

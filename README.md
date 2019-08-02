@@ -18,8 +18,8 @@ The protobuf API definitations are in the `odrpc` directory. There are 3 endpoin
 ### REST/JSON
 * `GET /detectors` - Get the list of configured detectors
 * `POST /detect` - Detect objects in an image
-```
 
+```
 {
 	"detector_name": "default",
 	"data": "<base64 encoded image information>",
@@ -28,6 +28,7 @@ The protobuf API definitations are in the `odrpc` directory. There are 3 endpoin
 	}
 }
 ```
+
 The result is returned as:
 ```
 {
@@ -44,10 +45,16 @@ The result is returned as:
     ]
 }
 ```
+
 Perform a detection. Use the default detector. (If omitted, it will use the default)
 The `data`, when using the REST interface is base64 encoded image data. DOODS can decode png, bmp and jpg. 
 The `detect` object allows you to specify the list of objects to detect as defined in the labels file. You can give a min percentage match.
 You can also use "*" which will match anything with a minimum percentage.
+
+Example One Liner:
+```
+echo "{\"detector_name\":\"default\", \"detect\":{\"*\":60}, \"data\":\"`cat grace_hopper.png|base64 -w0`\"}" > /tmp/postdata.json && curl -d@/tmp/postdata.json -H "Content-Type: application/json" -X POST http://localhass.prozach.org:8080/detect
+```
 
 ## Detectors
 You should optimally pass image data in the requested size for the detector. If not, it will be automatically resized.
@@ -153,8 +160,8 @@ To run the container in docker you need to map port 8080. If you want to update 
 `docker run -it -p 8080:8080 snowzach/doods:latest`
 
 ### Coral EdgeTPU
-If you want to run it in docker using the Coral EdgeTPU, you need to run the container privileged and map the Coral EdgeTPU device.
-`docker run -it -v /dev/bus/usb:/dev/bus/usb --privileged -p 8080:8080 snowzach/doods:latest`
+If you want to run it in docker using the Coral EdgeTPU, you need to pass the device to the container
+`docker run -it --device /dev/bus/usb -p 8080:8080 snowzach/doods:latest`
 
 ## Misc
 Special thanks to https://github.com/mattn/go-tflite as I would have never been able to figure out all the CGO stuff. I really wanted to write this in Go but I'm not good enough at C++/CGO to do it. Most of the tflite code is taken from that repo and customized for this tool.
