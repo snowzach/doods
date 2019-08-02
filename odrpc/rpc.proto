@@ -1,0 +1,88 @@
+syntax="proto3";
+package odrpc;
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option go_package = "github.com/snowzach/doods/odrpc";
+
+service odrpc {
+
+    // Get Config
+    rpc GetDetectors(google.protobuf.Empty) returns (GetDetectorsResponse) {
+        option (google.api.http) = {
+            get: "/detectors"
+        };
+    }
+
+    // Process an request
+    rpc Detect(DetectRequest) returns (DetectResponse) {
+        option (google.api.http) = {
+            post: "/detect"
+            body: "*"
+            additional_bindings: {
+                post: "/detect/{detector_name}"
+                body: "*"
+            }
+        };
+    }
+
+    // Process stream requests
+    rpc DetectStream(stream DetectRequest) returns (stream DetectResponse){
+    }
+
+}
+
+message GetDetectorsResponse {
+    repeated Detector detectors = 1;
+}
+
+message Detector {
+    // The name for this config
+    string name = 1;
+    // The name for this config
+    string type = 2;
+    // Model Name
+    string model = 3;
+    // Labels
+    repeated string labels = 4;
+    // The detection width
+    int32 width = 5;
+    // The detection height
+    int32 height = 6;
+    // The detection channels
+    int32 channels = 7;
+}
+
+// The Process Request
+message DetectRequest {
+    // The ID for the request.
+    string id = 1;
+    // The ID for the request.
+    string detector_name = 2;
+    // The image data
+    bytes data = 3 [(gogoproto.casttype) = "Raw",(gogoproto.jsontag) = "data"];
+    // What to detect
+    map<string, float> detect = 4;
+}
+
+// Area for detection
+message Detection {
+    // Coordinates
+    int32 x1 = 1 [(gogoproto.jsontag) = "x1"];
+    int32 y1 = 2 [(gogoproto.jsontag) = "y1"]; 
+    int32 x2 = 3 [(gogoproto.jsontag) = "x2"];
+    int32 y2 = 4 [(gogoproto.jsontag) = "y2"];
+    string label = 5 [(gogoproto.jsontag) = "label"];
+    float confidence = 6 [(gogoproto.jsontag) = "confidence"];
+}
+
+message DetectResponse {
+    // The id for the response
+    string id = 1;
+    // The detected areas
+    repeated Detection detections = 2;
+    // If there was an error (streaming endpoint only)
+    string error = 3;
+}

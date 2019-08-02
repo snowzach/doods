@@ -1,0 +1,277 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "odrpc/rpc.proto",
+    "version": "version not set"
+  },
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/detect": {
+      "post": {
+        "summary": "Process an request",
+        "operationId": "Detect",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/odrpcDetectResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/odrpcDetectRequest"
+            }
+          }
+        ],
+        "tags": [
+          "odrpc"
+        ]
+      }
+    },
+    "/detect/{detector_name}": {
+      "post": {
+        "summary": "Process an request",
+        "operationId": "Detect2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/odrpcDetectResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "detector_name",
+            "description": "The ID for the request.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/odrpcDetectRequest"
+            }
+          }
+        ],
+        "tags": [
+          "odrpc"
+        ]
+      }
+    },
+    "/detectors": {
+      "get": {
+        "summary": "Get Config",
+        "operationId": "GetDetectors",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/odrpcGetDetectorsResponse"
+            }
+          }
+        },
+        "tags": [
+          "odrpc"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "odrpcDetectRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The ID for the request."
+        },
+        "detector_name": {
+          "type": "string",
+          "description": "The ID for the request."
+        },
+        "data": {
+          "type": "string",
+          "format": "byte",
+          "title": "The image data"
+        },
+        "detect": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "format": "float"
+          },
+          "title": "What to detect"
+        }
+      },
+      "title": "The Process Request"
+    },
+    "odrpcDetectResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "title": "The id for the response"
+        },
+        "detections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/odrpcDetection"
+          },
+          "title": "The detected areas"
+        },
+        "error": {
+          "type": "string",
+          "title": "If there was an error (streaming endpoint only)"
+        }
+      }
+    },
+    "odrpcDetection": {
+      "type": "object",
+      "properties": {
+        "x1": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Coordinates"
+        },
+        "y1": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "x2": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "y2": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "label": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number",
+          "format": "float"
+        }
+      },
+      "title": "Area for detection"
+    },
+    "odrpcDetector": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "The name for this config"
+        },
+        "type": {
+          "type": "string",
+          "title": "The name for this config"
+        },
+        "model": {
+          "type": "string",
+          "title": "Model Name"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels"
+        },
+        "width": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The detection width"
+        },
+        "height": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The detection height"
+        },
+        "channels": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The detection channels"
+        }
+      }
+    },
+    "odrpcGetDetectorsResponse": {
+      "type": "object",
+      "properties": {
+        "detectors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/odrpcDetector"
+          }
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "runtimeStreamError": {
+      "type": "object",
+      "properties": {
+        "grpc_code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "http_code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "http_status": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  },
+  "x-stream-definitions": {
+    "odrpcDetectResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/odrpcDetectResponse"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of odrpcDetectResponse"
+    }
+  }
+}

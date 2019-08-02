@@ -1,0 +1,8 @@
+.vscode
+doods
+*.txt
+*.png
+*.bmp
+*.ppm
+*.tflite
+*.zip
