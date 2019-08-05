@@ -19,6 +19,7 @@ import (
 
 	"github.com/snowzach/doods/detector/dconfig"
 	"github.com/snowzach/doods/detector/tflite"
+	"github.com/snowzach/doods/detector/tensorflow"
 	"github.com/snowzach/doods/odrpc"
 )
 
@@ -51,19 +52,26 @@ func New() *Mux {
 
 	// Create the detectors
 	for _, c := range detectorConfig {
+		var d Detector
+		var err error
+
+		m.logger.Debugw("Configuring detector", "config", c)
+
 		switch c.Type {
-		case "tflite-edgetpu":
-			fallthrough
 		case "tflite":
-			d, err := tflite.New(c)
-			if err != nil {
-				m.logger.Errorf("Could not initialize detector %s: %v", c.Name, err)
-				continue
-			}
-			dc := d.Config()
-			m.logger.Infow("Configured Detector", "name", dc.Name, "type", dc.Type, "model", dc.Model, "labels", len(dc.Labels), "width", dc.Width, "height", dc.Height)
-			m.detectors[c.Name] = d
+			d, err = tflite.New(c)
+		case "tensorflow":
+			d, err = tensorflow.New(c)
 		}
+
+		if err != nil {
+			m.logger.Errorf("Could not initialize detector %s: %v", c.Name, err)
+			continue
+		}
+
+		dc := d.Config()
+		m.logger.Infow("Configured Detector", "name", dc.Name, "type", dc.Type, "model", dc.Model, "labels", len(dc.Labels), "width", dc.Width, "height", dc.Height)
+		m.detectors[c.Name] = d
 	}
 
 	if len(m.detectors) == 0 {

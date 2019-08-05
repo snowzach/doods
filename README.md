@@ -62,7 +62,7 @@ It can read BMP, PNG and JPG as well as PPM.
 
 ### TFLite
 If you pass PPM image data in the right dimensions, it can be fed directly into tensorflow. This skips a couple steps for speed. 
-You can also specify the `type` of `tflite-edgetpu` in the config and it will enable Coral EdgeTPU hardware acceleration. 
+You can also specify `hwAccel: true` in the config and it will enable Coral EdgeTPU hardware acceleration. 
 You must also provide it an appropriate EdgeTPU model file.
 
 ## Compiling
@@ -118,50 +118,36 @@ You can enable https by setting the config option server.tls = true and pointing
 To create a self-signed cert: `openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 -keyout server.key -out server.crt`
 
 ### Detector Config
-Detector config must be done with a configuration file. The default config detector config is:
+Detector config must be done with a configuration file. The default config includes one Tensorflow lite mobilenet detector.
 ```
-{
-	"doods": {
-		"config": [
-			{
-				"name": "default",
-				"type": "tflite",
-				"model_file": "model.tflite",
-				"label_file": "labels.txt",
-				"num_threads": 4,
-				"num_interpreters": 4,
-			},
-			{
-				"name": "edgetpu",
-				"type": "tflite-edgetpu",
-				"model_file": "model-edgetpu.tflite",
-				"label_file": "labels.txt",
-				"num_threads": 4,
-				"num_interpreters": 4,
-			}
-		]
-	}
-}
+doods:
+  detectors:
+    - name: default
+      type: tflite
+      modelFile: models/coco_ssd_mobilenet_v1_1.0_quant.tflite
+      labelFile: models/coco_labels0.txt
+      numThreads: 4
+      numConcurrent: 4 
 ```
-
 The default model is downloaded from google: coco_ssd_mobilenet_v1_1.0_quant_2018_06_29
-The default edgetpu model is mobilenet_ssd_v2_coco_quant_postprocess_edgetpu
-If you do not have an edgetpu, this detector will not be enabled.
 
 ### Detectors
- * tflite - Tensorflow lite models
- * tflite-edgetpu - Tensorflow lite with Coral EdgeTPU hardware accelerator
+ * tflite - Tensorflow lite models - Supports Coral EdgeTPU
+ * tensorflow - Tensorflow 
 
-## Examples
+## Examples - Clients
 See the examples directory for sample clients
 
 ## Docker
 To run the container in docker you need to map port 8080. If you want to update the models, you need to map model files and a config to use them. 
 `docker run -it -p 8080:8080 snowzach/doods:latest`
 
+There is a script called `fetch_models.sh` that you can download and run to create a models directory and download several models and outputs an `example.yaml` config file.
+You could then run: `docker run -it -v ./models:/opt/doods/models -v ./example.yaml:/opt/doods/config.yaml -p 8080:8080 snowzach/doods:latest`
+
 ### Coral EdgeTPU
-If you want to run it in docker using the Coral EdgeTPU, you need to pass the device to the container
-`docker run -it --device /dev/bus/usb -p 8080:8080 snowzach/doods:latest`
+If you want to run it in docker using the Coral EdgeTPU, you need to pass the device to the container with: `--device /dev/bus/usb`
+Example: `docker run -it --device /dev/bus/usb -p 8080:8080 snowzach/doods:latest`
 
 ## Misc
 Special thanks to https://github.com/mattn/go-tflite as I would have never been able to figure out all the CGO stuff. I really wanted to write this in Go but I'm not good enough at C++/CGO to do it. Most of the tflite code is taken from that repo and customized for this tool.

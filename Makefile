@@ -49,3 +49,13 @@ test: tools ${PROTOS}
 deps:
 	# Fetching dependancies...
 	go get -d -v # Adding -u here will break CI
+
+docker-builder: Dockerfile_builder
+	docker build -t snowzach/doods:builder -f Dockerfile_builder .
+
+docker:
+	docker build -t snowzach/doods:latest .
+
+buildenv: docker-builder
+	$(eval USBDEVICE := $(shell if [ -x /dev/bus/usb ]; then echo '--device /dev/bus/usb'; fi))
+	docker run -it -v ${PWD}:/build ${USBDEVICE} -p 8900:8080 snowzach/doods:builder

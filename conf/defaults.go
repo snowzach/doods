@@ -43,23 +43,6 @@ func init() {
 
 	// Main settings
 	config.SetDefault("doods.auth_key", "")
-	config.SetDefault("doods.detectors", []*dconfig.DetectorConfig{
-		&dconfig.DetectorConfig{
-			Name:            "default",
-			Type:            "tflite",
-			ModelFile:       "model.tflite",
-			LabelFile:       "labels.txt",
-			NumThreads:      4,
-			NumInterpreters: 4,
-		},
-		&dconfig.DetectorConfig{
-			Name:            "edgetpu",
-			Type:            "tflite-edgetpu",
-			ModelFile:       "model-edgetpu.tflite",
-			LabelFile:       "labels.txt",
-			NumThreads:      4,
-			NumInterpreters: 4,
-		},
-	})
+	config.SetDefault("doods.detectors", []*dconfig.DetectorConfig{})
 
 }

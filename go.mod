@@ -7,6 +7,7 @@ require (
 	github.com/golang/protobuf v1.2.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/grpc-gateway v1.9.5
+	github.com/hybridgroup/mjpeg v0.0.0-20140228234708-4680f319790e
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/lmittmann/ppm v0.0.0-20190710221224-39ecc9a875da
 	github.com/mattn/go-pointer v0.0.0-20180825124634-49522c3f3791
@@ -19,9 +20,11 @@ require (
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/spf13/viper v1.2.1
 	github.com/stretchr/testify v1.2.2
+	github.com/tensorflow/tensorflow v1.14.0
 	go.uber.org/atomic v1.4.0 // indirect
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.9.1
+	gocv.io/x/gocv v0.20.0
 	golang.org/x/image v0.0.0-20190802002840-cff245a6509b
 	golang.org/x/net v0.0.0-20181220203305-927f97764cc3
 	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect

@@ -33,7 +33,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 	d := &detector{
 		labels: make(map[int]string),
 		logger: zap.S().With("package", "detector.tflite"),
-		pool:   make(chan *Interpreter, c.NumInterpreters),
+		pool:   make(chan *Interpreter, c.NumConcurrent),
 	}
 
 	d.config.Name = c.Name
@@ -54,7 +54,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
-	for x := 0; scanner.Scan(); x++ {
+	for x := 1; scanner.Scan(); x++ {
 		fields := strings.SplitAfterN(scanner.Text(), " ", 2)
 		if len(fields) == 1 {
 			d.labels[x] = fields[0]
@@ -68,7 +68,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 	}
 
 	// If we are using edgetpu, make sure we have one
-	if d.config.Type == "tflite-edgetpu" {
+	if c.HWAccel {
 		if !HasEdgeTPU() {
 			return nil, fmt.Errorf("no edgetpu detected")
 		}
@@ -78,7 +78,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 
 	var interpreter *Interpreter
 
-	for x := 0; x < c.NumInterpreters; x++ {
+	for x := 0; x < c.NumConcurrent; x++ {
 		// Options
 		options := NewInterpreterOptions()
 		options.SetNumThread(c.NumThreads)
@@ -88,7 +88,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 		defer options.Delete()
 
 		// Use edgetpu
-		if d.config.Type == "tflite-edgetpu" {
+		if c.HWAccel {
 			options.ExpAddCustomOp(EdgeTPUCustomOp, Register_EdgeTPU(), 1, 1)
 			interpreter = NewInterpreter(d.model, options)
 			EdgeTPUSetup(interpreter, d.model)

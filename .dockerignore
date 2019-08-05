@@ -5,7 +5,9 @@ doods
 *.bmp
 *.ppm
 *.tflite
+*.pb
+*.weights
+*.cfg
 *.zip
 private
-models
-example.yaml
+models/**
