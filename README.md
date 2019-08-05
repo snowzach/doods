@@ -127,7 +127,8 @@ doods:
       modelFile: models/coco_ssd_mobilenet_v1_1.0_quant.tflite
       labelFile: models/coco_labels0.txt
       numThreads: 4
-      numConcurrent: 4 
+      numConcurrent: 4
+	  hwAccel: false
 ```
 The default model is downloaded from google: coco_ssd_mobilenet_v1_1.0_quant_2018_06_29
 

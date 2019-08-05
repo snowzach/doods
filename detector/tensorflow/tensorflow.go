@@ -44,8 +44,8 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 	d.config.Type = c.Type
 	d.config.Model = c.ModelFile
 	d.config.Labels = make([]string, 0)
-	d.config.Width = int32(c.Width)
-	d.config.Height = int32(c.Height)
+	d.config.Width = -1
+	d.config.Height = -1
 
 	// Load labels
 	f, err := os.Open(c.LabelFile)
