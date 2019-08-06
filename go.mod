@@ -7,6 +7,7 @@ require (
 	github.com/golang/protobuf v1.2.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/grpc-gateway v1.9.5
+	github.com/gyonluks/go-darknet v0.0.0-20180607095840-c2698c68d167
 	github.com/hybridgroup/mjpeg v0.0.0-20140228234708-4680f319790e
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/lmittmann/ppm v0.0.0-20190710221224-39ecc9a875da

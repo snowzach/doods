@@ -36,7 +36,7 @@ RUN cd /tmp && git clone https://coral.googlesource.com/edgetpu-native --branch 
     install edgetpu-native/libedgetpu/edgetpu.h /usr/local/include/libedgetpu/edgetpu.h && \
     rm -Rf edgetpu-native
 
-# Install GOCV
+# Install OpenCV
 ARG OPENCV_VERSION="4.0.1"
 ENV OPENCV_VERSION $OPENCV_VERSION
 RUN cd /tmp && \
@@ -62,7 +62,16 @@ RUN cd /tmp && \
             -D OPENCV_GENERATE_PKGCONFIG=ON .. && \
     make -j $(nproc --all) && \
     make preinstall && make install && ldconfig && \
+    ln -s /usr/local/lib/pkgconfig/opencv4.pc /usr/local/lib/pkgconfig/opencv.pc && \
     cd /tmp && rm -rf opencv*
+
+# Install Darknet/Yolo
+RUN cd /tmp && git clone https://github.com/pjreddie/darknet && cd /tmp/darknet
+ADD patches/darknet_image_opencv.cpp /tmp/darknet/src/image_opencv.cpp
+RUN make OPENCV=1 && \
+    install libdarknet.so /usr/local/lib/libdarknet.so && \
+    install include/darknet.h /usr/local/include/darknet.h && \
+    ldconfig
 
 # Install Go
 ARG GOVERSION="1.12.6"

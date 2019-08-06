@@ -20,6 +20,7 @@ import (
 	"github.com/snowzach/doods/detector/dconfig"
 	"github.com/snowzach/doods/detector/tflite"
 	"github.com/snowzach/doods/detector/tensorflow"
+	"github.com/snowzach/doods/detector/darknet"
 	"github.com/snowzach/doods/odrpc"
 )
 
@@ -62,6 +63,11 @@ func New() *Mux {
 			d, err = tflite.New(c)
 		case "tensorflow":
 			d, err = tensorflow.New(c)
+		case "darknet":
+			d, err = darknet.New(c)
+		default:
+			m.logger.Errorw("Unknown detector", "name", c.Name, "type", c.Type)
+			continue
 		}
 
 		if err != nil {
