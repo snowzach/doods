@@ -6,18 +6,16 @@ import (
 	"context"
 	"fmt"
 	"image"
-	"time"
-
-	// "image"
 	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	tf "github.com/tensorflow/tensorflow/tensorflow/go"
 	"github.com/tensorflow/tensorflow/tensorflow/go/op"
 	"go.uber.org/zap"
-	"gocv.io/x/gocv"
+	"golang.org/x/image/bmp"
 
 	"github.com/snowzach/doods/detector/dconfig"
 	"github.com/snowzach/doods/odrpc"
@@ -114,7 +112,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 	}()
 
 	// Determine the image type
-	imgConfig, imgType, err := image.DecodeConfig(bytes.NewReader(request.Data))
+	img, imgType, err := image.Decode(bytes.NewReader(request.Data))
 	if err != nil {
 		return &odrpc.DetectResponse{
 			Id:    request.Id,
@@ -124,21 +122,9 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 
 	// If the image is not a supported type, convert it to bmp
 	if imgType != "png" && imgType != "gif" && imgType != "jpg" && imgType != "bmp" {
-		// Convert the image to bmp
-		img, err := gocv.IMDecode(request.Data, gocv.IMReadColor)
-		if err != nil {
-			return &odrpc.DetectResponse{
-				Id:    request.Id,
-				Error: fmt.Sprintf("Could not decode image: %v", err),
-			}
-		}
-		defer img.Close()
-
-		imgConfig.Width = img.Cols()
-		imgConfig.Height = img.Rows()
 
 		// Encode as raw BMP
-		request.Data, err = gocv.IMEncode(".bmp", img)
+		err = bmp.Encode(bytes.NewBuffer(request.Data), img)
 		if err != nil {
 			return &odrpc.DetectResponse{
 				Id:    request.Id,
@@ -146,6 +132,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 			}
 		}
 		imgType = "bmp"
+
 	}
 
 	scope := op.NewScope()
