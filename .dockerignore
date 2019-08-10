@@ -11,3 +11,4 @@ doods
 *.zip
 private
 models/**
+Dockerfile**
