@@ -9,7 +9,6 @@ It translates gRPC into RESTful JSON APIs.
 package odrpc
 
 import (
-	"context"
 	"io"
 	"net/http"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
@@ -42,11 +42,7 @@ func request_Odrpc_Detect_0(ctx context.Context, marshaler runtime.Marshaler, cl
 	var protoReq DetectRequest
 	var metadata runtime.ServerMetadata
 
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
-	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -59,11 +55,7 @@ func request_Odrpc_Detect_1(ctx context.Context, marshaler runtime.Marshaler, cl
 	var protoReq DetectRequest
 	var metadata runtime.ServerMetadata
 
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
-	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -131,6 +123,15 @@ func RegisterOdrpcHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 	mux.Handle("GET", pattern_Odrpc_GetDetectors_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -151,6 +152,15 @@ func RegisterOdrpcHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 	mux.Handle("POST", pattern_Odrpc_Detect_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -171,6 +181,15 @@ func RegisterOdrpcHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 	mux.Handle("POST", pattern_Odrpc_Detect_1, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
@@ -192,11 +211,11 @@ func RegisterOdrpcHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 }
 
 var (
-	pattern_Odrpc_GetDetectors_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"detectors"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Odrpc_GetDetectors_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"detectors"}, ""))
 
-	pattern_Odrpc_Detect_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"detect"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Odrpc_Detect_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"detect"}, ""))
 
-	pattern_Odrpc_Detect_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1}, []string{"detect", "detector_name"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Odrpc_Detect_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 1, 0, 4, 1, 5, 1}, []string{"detect", "detector_name"}, ""))
 )
 
 var (

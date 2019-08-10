@@ -35,10 +35,10 @@ The result is returned as:
     "id": "test",
     "detections": [
         {
-            "x1": 0,
-            "y1": 8,
-            "x2": 512,
-            "y2": 587,
+            "top": 0,
+            "left": 0.05,
+            "bottom": .8552,
+            "right": 0.9441,
             "label": "person",
             "confidence": 87.890625
         }
@@ -128,7 +128,7 @@ doods:
       labelFile: models/coco_labels0.txt
       numThreads: 4
       numConcurrent: 4
-	  hwAccel: false
+      hwAccel: false
 ```
 The default model is downloaded from google: coco_ssd_mobilenet_v1_1.0_quant_2018_06_29
 
