@@ -21,7 +21,7 @@
         "operationId": "Detect",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "",
             "schema": {
               "$ref": "#/definitions/odrpcDetectResponse"
             }
@@ -48,7 +48,7 @@
         "operationId": "Detect2",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "",
             "schema": {
               "$ref": "#/definitions/odrpcDetectResponse"
             }
@@ -82,7 +82,7 @@
         "operationId": "GetDetectors",
         "responses": {
           "200": {
-            "description": "A successful response.",
+            "description": "",
             "schema": {
               "$ref": "#/definitions/odrpcGetDetectorsResponse"
             }
@@ -145,22 +145,22 @@
     "odrpcDetection": {
       "type": "object",
       "properties": {
-        "x1": {
-          "type": "integer",
-          "format": "int32",
+        "top": {
+          "type": "number",
+          "format": "float",
           "title": "Coordinates"
         },
-        "y1": {
-          "type": "integer",
-          "format": "int32"
+        "left": {
+          "type": "number",
+          "format": "float"
         },
-        "x2": {
-          "type": "integer",
-          "format": "int32"
+        "bottom": {
+          "type": "number",
+          "format": "float"
         },
-        "y2": {
-          "type": "integer",
-          "format": "int32"
+        "right": {
+          "type": "number",
+          "format": "float"
         },
         "label": {
           "type": "string"
@@ -221,57 +221,6 @@
           }
         }
       }
-    },
-    "protobufAny": {
-      "type": "object",
-      "properties": {
-        "type_url": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string",
-          "format": "byte"
-        }
-      }
-    },
-    "runtimeStreamError": {
-      "type": "object",
-      "properties": {
-        "grpc_code": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "http_code": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "message": {
-          "type": "string"
-        },
-        "http_status": {
-          "type": "string"
-        },
-        "details": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/protobufAny"
-          }
-        }
-      }
-    }
-  },
-  "x-stream-definitions": {
-    "odrpcDetectResponse": {
-      "type": "object",
-      "properties": {
-        "result": {
-          "$ref": "#/definitions/odrpcDetectResponse"
-        },
-        "error": {
-          "$ref": "#/definitions/runtimeStreamError"
-        }
-      },
-      "title": "Stream result of odrpcDetectResponse"
     }
   }
 }

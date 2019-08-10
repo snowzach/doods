@@ -238,29 +238,29 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 		}
 
 		detection := &odrpc.Detection{
-			Y1:         int32(locations[(i*4)] * float32(dy)),
-			X1:         int32(locations[(i*4)+1] * float32(dx)),
-			Y2:         int32(locations[(i*4)+2] * float32(dy)),
-			X2:         int32(locations[(i*4)+3] * float32(dx)),
+			Top:        locations[(i * 4)],
+			Left:       locations[(i*4)+1],
+			Bottom:     locations[(i*4)+2],
+			Right:      locations[(i*4)+3],
 			Label:      label,
 			Confidence: scores[i] * 100.0,
 		}
 		// Cleanup the bounds
-		if detection.Y1 < 0 {
-			detection.Y1 = 0
+		if detection.Top < 0 {
+			detection.Top = 0
 		}
-		if detection.X1 < 0 {
-			detection.X1 = 0
+		if detection.Left < 0 {
+			detection.Left = 0
 		}
-		if detection.Y2 > dy {
-			detection.Y2 = dy
+		if detection.Bottom > 1 {
+			detection.Bottom = 1
 		}
-		if detection.X2 > dx {
-			detection.X2 = dx
+		if detection.Right > 1 {
+			detection.Right = 1
 		}
 		detections = append(detections, detection)
 
-		d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence, "location", fmt.Sprintf("%d,%d,%d,%d", detection.X1, detection.Y1, detection.X2, detection.Y2))
+		d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence, "location", fmt.Sprintf("%d,%d,%d,%d", detection.Top, detection.Left, detection.Bottom, detection.Right))
 	}
 
 	d.logger.Infow("Detection Complete", "id", request.Id, "duration", time.Since(start), "detections", len(detections))
