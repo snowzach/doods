@@ -12,12 +12,11 @@ import (
 	"os"
 	"sync"
 
+	"github.com/hybridgroup/mjpeg"
+	"gocv.io/x/gocv"
 	"google.golang.org/grpc"
 
 	"github.com/snowzach/doods/odrpc"
-
-	"github.com/hybridgroup/mjpeg"
-	"gocv.io/x/gocv"
 )
 
 var (
@@ -137,8 +136,8 @@ func mjpegCapture(server string, detector string) {
 				labels = make([]string, detections, detections)
 				for x := 0; x < detections; x++ {
 					rs[x] = image.Rectangle{
-						Min: image.Point{X: int(float32(response.Detections[x].X1) * 3.6), Y: int(float32(response.Detections[x].Y1)*3.6) * 4},
-						Max: image.Point{X: int(float32(response.Detections[x].X2) * 3.6), Y: int(float32(response.Detections[x].Y2)*3.6) * 4},
+						Min: image.Point{X: int(float32(response.Detections[x].Left) * 3.6), Y: int(float32(response.Detections[x].Top)*3.6) * 4},
+						Max: image.Point{X: int(float32(response.Detections[x].Right) * 3.6), Y: int(float32(response.Detections[x].Bottom)*3.6) * 4},
 					}
 					labels[x] = response.Detections[x].Label
 				}

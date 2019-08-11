@@ -50,8 +50,8 @@ deps:
 	# Fetching dependancies...
 	go get -d -v # Adding -u here will break CI
 
-docker-builder: Dockerfile_builder
-	docker build -t snowzach/doods:builder -f Dockerfile_builder .
+docker-builder: Dockerfile.builder
+	docker build -t snowzach/doods:builder -f Dockerfile.builder .
 
 docker:
 	docker build -t snowzach/doods:latest .

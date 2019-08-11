@@ -2,42 +2,41 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
+	"log"
+	"os"
 	"sync"
 	"time"
 
-	config "github.com/spf13/viper"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/snowzach/doods/conf"
 	"github.com/snowzach/doods/odrpc"
 )
 
 func main() {
 
-	l, _ := zap.NewDevelopment()
-	logger := l.Sugar()
+	if len(os.Args) < 4 {
+		fmt.Println("How to run:\n\tgrpcclient-stream [source file] [doods server] [detector]")
+		return
+	}
+
+	// parse args
+	sourceFile := os.Args[1]
+	server := os.Args[2]
+	detector := os.Args[3]
 
 	dialOptions := []grpc.DialOption{
 		grpc.WithBlock(),
-	}
-	if config.GetBool("server.tls") {
-		dialOptions = append(dialOptions, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})))
-	} else {
-		dialOptions = append(dialOptions, grpc.WithInsecure())
+		grpc.WithInsecure(),
 	}
 
 	// Set up a connection to the gRPC server.
-	conn, err := grpc.DialContext(conf.Stop.Context, net.JoinHostPort(config.GetString("server.host"), config.GetString("server.port")), dialOptions...)
+	conn, err := grpc.Dial(server, dialOptions...)
 	if err != nil {
-		logger.Fatalw("Could not connect", "error", err)
+		log.Fatalf("Could not connect: %v", err)
 	}
 	defer conn.Close()
 
@@ -45,9 +44,9 @@ func main() {
 	client := odrpc.NewOdrpcClient(conn)
 
 	// Create the request
-	img, err := ioutil.ReadFile("grace_hopper.ppm")
+	img, err := ioutil.ReadFile(sourceFile)
 	if err != nil {
-		logger.Fatalf("Could not load grace_hopper.bmp: %v", err)
+		log.Fatalf("Could not load %s %v", sourceFile, err)
 	}
 
 	// Authentication information - ignored if not requried
@@ -55,7 +54,7 @@ func main() {
 	// Open Stream
 	stream, err := client.DetectStream(ctx)
 	if err != nil {
-		logger.Fatalw("Could not stream", "error", err)
+		log.Fatalf("Could not stream: %v", err)
 	}
 
 	start := time.Now()
@@ -64,18 +63,18 @@ func main() {
 
 	// Send requests
 	go func() {
-		for x := 0; x < 200 && !conf.Stop.Bool(); x++ {
+		for x := 0; x < 200; x++ {
 			wg.Add(1)
 			request := &odrpc.DetectRequest{
 				Id:           fmt.Sprintf("%d", x),
-				DetectorName: "default",
+				DetectorName: detector,
 				Data:         img,
 				Detect: map[string]float32{
 					"*": 50, //
 				},
 			}
 			if err := stream.Send(request); err != nil {
-				logger.Fatalf("could not stream send %v", err)
+				log.Fatalf("could not stream send %v", err)
 			}
 		}
 		close(doneSend)
@@ -89,10 +88,10 @@ func main() {
 				break
 			}
 			if err != nil {
-				logger.Fatalf("can not receive %v", err)
+				log.Fatalf("can not receive %v", err)
 			}
 			wg.Done()
-			logger.Infow("Processed", "response", response)
+			log.Printf("Processed: %v", response)
 		}
 	}()
 
@@ -100,8 +99,7 @@ func main() {
 	<-doneSend
 	wg.Wait()
 	if err := stream.CloseSend(); err != nil {
-		logger.Error(err.Error())
+		log.Fatal(err.Error())
 	}
-	logger.Infow("Done", "took", time.Since(start).Seconds())
-	zap.L().Sync() // Flush the logger
+	log.Printf("Done. Took: %v", time.Since(start).Seconds())
 }
