@@ -1,6 +1,7 @@
 EXECUTABLE := doods
 GITVERSION := $(shell git describe --dirty --always --tags --long)
 GOPATH ?= ${HOME}/go
+TAG ?= latest
 PACKAGENAME := $(shell go list -m -f '{{.Path}}')
 TOOLS := ${GOPATH}/src/github.com/gogo/protobuf/proto \
 	${GOPATH}/bin/protoc-gen-gogoslick \
@@ -45,17 +46,14 @@ ${EXECUTABLE}: tools ${PROTOS}
 test: tools ${PROTOS}
 	go test -cover ./...
 
-.PHONY: deps
 deps:
 	# Fetching dependancies...
 	go get -d -v # Adding -u here will break CI
 
-docker-builder: Dockerfile.builder
-	docker build -t snowzach/doods:builder -f Dockerfile.builder .
+docker: docker-builder docker-image
 
-docker:
-	docker build -t snowzach/doods:latest .
+docker-builder:
+	builder/doods-builder.sh ${TAG}
 
-buildenv: docker-builder
-	$(eval USBDEVICE := $(shell if [ -x /dev/bus/usb ]; then echo '--device /dev/bus/usb'; fi))
-	docker run -it -v ${PWD}:/build ${USBDEVICE} -p 8900:8080 snowzach/doods:builder
+docker-image:
+	docker build -t snowzach/doods:${TAG} --build-arg BUILDER_TAG=${TAG} -f Dockerfile .

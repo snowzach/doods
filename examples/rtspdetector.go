@@ -22,7 +22,7 @@ import (
 var (
 	deviceID int
 	err      error
-	webcam   *gocv.VideoCapture
+	capture  *gocv.VideoCapture
 	stream   *mjpeg.Stream
 )
 
@@ -39,12 +39,12 @@ func main() {
 	detector := os.Args[4]
 
 	// open webcam
-	webcam, err = gocv.OpenVideoCapture(source)
+	capture, err = gocv.OpenVideoCapture(source)
 	if err != nil {
 		fmt.Printf("Error opening capture device: %v: %v\n", source, err)
 		return
 	}
-	defer webcam.Close()
+	defer capture.Close()
 
 	// create the mjpeg stream
 	stream = mjpeg.NewStream()
@@ -89,11 +89,12 @@ func mjpegCapture(server string, detector string) {
 	green := color.RGBA{0, 255, 0, 0}
 	var rs = make([]image.Rectangle, 0)
 	var labels = make([]string, 0)
+	var confidences = make([]float32, 0)
 	var m sync.Mutex
 	var detectorReady bool = true
 
 	for {
-		if ok := webcam.Read(&img); !ok {
+		if ok := capture.Read(&img); !ok {
 			fmt.Printf("Device closed: %v\n", deviceID)
 			return
 		}
@@ -104,7 +105,7 @@ func mjpegCapture(server string, detector string) {
 		request := &odrpc.DetectRequest{
 			DetectorName: detector,
 			Detect: map[string]float32{
-				"*": 50, //
+				"*": 60, //
 			},
 		}
 
@@ -134,12 +135,14 @@ func mjpegCapture(server string, detector string) {
 				detections := len(response.Detections)
 				rs = make([]image.Rectangle, detections, detections)
 				labels = make([]string, detections, detections)
+				confidences = make([]float32, detections, detections)
 				for x := 0; x < detections; x++ {
 					rs[x] = image.Rectangle{
-						Min: image.Point{X: int(float32(response.Detections[x].Left) * 3.6), Y: int(float32(response.Detections[x].Top)*3.6) * 4},
-						Max: image.Point{X: int(float32(response.Detections[x].Right) * 3.6), Y: int(float32(response.Detections[x].Bottom)*3.6) * 4},
+						Min: image.Point{X: int(response.Detections[x].Left * 1080), Y: int(response.Detections[x].Top * 1080)},
+						Max: image.Point{X: int(response.Detections[x].Right * 1080), Y: int(response.Detections[x].Bottom * 1080)},
 					}
 					labels[x] = response.Detections[x].Label
+					confidences[x] = response.Detections[x].Confidence
 				}
 				detectorReady = true
 				m.Unlock()
@@ -148,11 +151,9 @@ func mjpegCapture(server string, detector string) {
 		m.Unlock()
 
 		for x := 0; x < len(rs); x++ {
-			gocv.Rectangle(&img, rs[x], green, 2)
-			size := gocv.GetTextSize(labels[x], gocv.FontHersheyPlain, 1.2, 1)
-			pt := image.Pt(rs[x].Min.X+(rs[x].Min.X/2)-(size.X/2), rs[x].Min.Y-2)
-			label := labels[x]
-			gocv.PutText(&img, label, pt, gocv.FontHersheyPlain, 1.2, green, 1)
+			gocv.Rectangle(&img, rs[x], green, 1)
+			pt := image.Pt(rs[x].Min.X, rs[x].Min.Y-2)
+			gocv.PutText(&img, fmt.Sprintf("%s %0.0f", labels[x], confidences[x]), pt, gocv.FontHersheyPlain, 1.5, green, 1)
 		}
 
 		// re-encode with boxes

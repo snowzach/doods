@@ -1,16 +1,21 @@
-FROM snowzach/doods:builder as build
+ARG BUILDER_TAG="latest"
+FROM snowzach/doods-builder:$BUILDER_TAG as builder
 
+# Create the build directory
+RUN mkdir /build
+WORKDIR /build
 ADD . .
 RUN make
 
-FROM ubuntu:18.04
-RUN apt-get update && apt-get install -y --no-install-recommends libusb-1.0 libc++-7-dev wget unzip ca-certificates 
-# For OpenCV
-# RUN apt-get install -y --no-install-recommends libgtk2.0-0 libdc1394-22 libavcodec57 libavformat57 ffmpeg 
+FROM debian:buster-slim
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libusb-1.0 libc++-7-dev wget unzip ca-certificates libdc1394-22 libavcodec58 libavformat58 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /opt/doods
 WORKDIR /opt/doods
-COPY --from=build /usr/local/lib/. /usr/local/lib/.
-COPY --from=build /build/doods /opt/doods/doods
+COPY --from=builder /usr/local/lib/. /usr/local/lib/.
+COPY --from=builder /build/doods /opt/doods/doods
 ADD config.yaml /opt/doods/config.yaml
 RUN ldconfig
 

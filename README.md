@@ -1,5 +1,5 @@
 # DOODS
-Dedicated Outside Object Detection Service - Yes, it's a backronym, so what...
+Dedicated Open Object Detection Service - Yes, it's a backronym, so what...
 
 DOODS is a GRPC service that detects objects in images. It's designed to be run as a container, optionally remotely. 
 
@@ -8,11 +8,11 @@ The API uses gRPC to communicate but it has a REST gateway built in for ease of 
 It supports very basic pre-shared key authentication if you wish to protect it. It also supports TLS encryption but is disabled by default.
 It uses the content-type header to automatically determine if you are connecting in REST mode or GRPC mode. It listens on port 8080 by default.
 
-### GRPC
-The protobuf API definitations are in the `odrpc` directory. There are 3 endpoints. 
+### GRPC Endpoints
+The protobuf API definitations are in the `odrpc/odrpc.proto` file. There are 3 endpoints. 
 
-- GetDetectors - Get the list of configured detectors.
-- Detect -  Detect objects in an image - Data should be passed as raw bytes
+- GetDetector - Get the list of configured detectors.
+- Detect -  Detect objects in an image - Data should be passed as raw bytes in GRPC.
 - DetectStream - Detect objects in a stream of images
 
 ### REST/JSON
@@ -45,7 +45,6 @@ The result is returned as:
     ]
 }
 ```
-
 Perform a detection. Use the default detector. (If omitted, it will use the default)
 The `data`, when using the REST interface is base64 encoded image data. DOODS can decode png, bmp and jpg. 
 The `detect` object allows you to specify the list of objects to detect as defined in the labels file. You can give a min percentage match.
@@ -116,6 +115,7 @@ LOGGER_LEVEL=debug
 ### TLS/HTTPS
 You can enable https by setting the config option server.tls = true and pointing it to your keyfile and certfile.
 To create a self-signed cert: `openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 -keyout server.key -out server.crt`
+You will need to mount these in the container and adjust the config to find them. 
 
 ### Detector Config
 Detector config must be done with a configuration file. The default config includes one Tensorflow lite mobilenet detector.
@@ -133,7 +133,7 @@ doods:
 The default model is downloaded from google: coco_ssd_mobilenet_v1_1.0_quant_2018_06_29
 
 ### Detectors
- * tflite - Tensorflow lite models - Supports Coral EdgeTPU
+ * tflite - Tensorflow lite models - Supports Coral EdgeTPU if hwAccel: true and appropriate model is used
  * tensorflow - Tensorflow 
 
 ## Examples - Clients
@@ -152,3 +152,19 @@ Example: `docker run -it --device /dev/bus/usb -p 8080:8080 snowzach/doods:lates
 
 ## Misc
 Special thanks to https://github.com/mattn/go-tflite as I would have never been able to figure out all the CGO stuff. I really wanted to write this in Go but I'm not good enough at C++/CGO to do it. Most of the tflite code is taken from that repo and customized for this tool.
+
+And special thanks to @marianopeck and @PINTO0309 for help in building tensorflow and binaries for bazel on the arm. 
+
+## Docker Images
+There are several published Docker images that you can use
+
+* latest - This is an x86_64 image with no features or optimizations. This should run on just about any 64 bit x86.
+* x86avx - This is an x64_64 with AVX and SSE4.2 features enabled. Use this for newer, more powerful x86
+* pi - This is for a Raspberry Pi
+
+## Compiling
+You can compile it yourself using the native config which should optimize for whatever you have installed. 
+Make the `snowzach/doods-builder:native` image followed by the `snowzach/doods:native` image with this command:
+```
+$ make docker TAG=native
+```
