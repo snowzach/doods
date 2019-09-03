@@ -262,7 +262,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 		}
 		detections = append(detections, detection)
 
-		d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence, "location", fmt.Sprintf("%d,%d,%d,%d", detection.Top, detection.Left, detection.Bottom, detection.Right))
+		d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence, "location", fmt.Sprintf("%f,%f,%f,%f", detection.Top, detection.Left, detection.Bottom, detection.Right))
 	}
 
 	d.logger.Infow("Detection Complete", "id", request.Id, "duration", time.Since(start), "detections", len(detections))

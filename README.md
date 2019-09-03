@@ -16,6 +16,7 @@ The protobuf API definitations are in the `odrpc/odrpc.proto` file. There are 3 
 - DetectStream - Detect objects in a stream of images
 
 ### REST/JSON
+* `GET /version` - Get the version
 * `GET /detectors` - Get the list of configured detectors
 * `POST /detect` - Detect objects in an image
 
@@ -166,5 +167,5 @@ There are several published Docker images that you can use
 You can compile it yourself using the native config which should optimize for whatever you have installed. 
 Make the `snowzach/doods-builder:native` image followed by the `snowzach/doods:native` image with this command:
 ```
-$ make docker TAG=native
+$ make docker CONFIG=native
 ```

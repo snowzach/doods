@@ -53,7 +53,7 @@ deps:
 docker: docker-builder docker-image
 
 docker-builder:
-	builder/doods-builder.sh ${TAG}
+	builder/doods-builder.sh ${CONFIG}
 
 docker-image:
-	docker build -t snowzach/doods:${TAG} --build-arg BUILDER_TAG=${TAG} -f Dockerfile .
+	docker build -t snowzach/doods:${CONFIG} --build-arg BUILDER_TAG=${CONFIG} -f Dockerfile .

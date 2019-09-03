@@ -11,7 +11,6 @@ import (
 	cli "github.com/spf13/cobra"
 	config "github.com/spf13/viper"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/snowzach/doods/conf"
 )
@@ -63,7 +62,7 @@ func Execute() {
 // This is the main initializer handling cli, config and log
 func init() {
 	// Initialize configuration
-	cli.OnInitialize(initConfig, initLog, initProfiler)
+	cli.OnInitialize(initConfig, initLogger, initProfiler)
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "Config file")
 }
 
@@ -82,46 +81,14 @@ func initConfig() {
 	}
 }
 
-func initLog() {
+func initLogger() {
 
-	logConfig := zap.NewProductionConfig()
-
-	// Log Level
-	var logLevel zapcore.Level
-	if err := logLevel.Set(config.GetString("logger.level")); err != nil {
-		zap.S().Fatalw("Could not determine logger.level", "error", err)
-	}
-	logConfig.Level.SetLevel(logLevel)
-
-	// Settings
-	logConfig.Encoding = config.GetString("logger.encoding")
-	logConfig.Development = config.GetBool("logger.dev_mode")
-	logConfig.DisableCaller = config.GetBool("logger.disable_caller")
-	logConfig.DisableStacktrace = config.GetBool("logger.disable_stacktrace")
-
-	// Enable Color
-	if config.GetBool("logger.color") {
-		logConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	}
-
-	// Use sane timestamp when logging to console
-	if logConfig.Encoding == "console" {
-		logConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	}
-
-	// JSON Fields
-	logConfig.EncoderConfig.MessageKey = "msg"
-	logConfig.EncoderConfig.LevelKey = "level"
-	logConfig.EncoderConfig.CallerKey = "caller"
-
-	// Build the logger
-	globalLogger, _ := logConfig.Build()
-	zap.ReplaceGlobals(globalLogger)
-	logger = globalLogger.Sugar().With("package", "cmd")
+	conf.InitLogger()
+	logger = zap.S().With("package", "cmd")
 
 }
 
-// Profliter can explicitly listen on address/port
+// Profiler can explicitly listen on address/port
 func initProfiler() {
 	if config.GetBool("profiler.enabled") {
 		hostPort := net.JoinHostPort(config.GetString("profiler.host"), config.GetString("profiler.port"))

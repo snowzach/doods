@@ -3,6 +3,7 @@ FROM debian:buster as builder
 # The build tag
 ARG TAG="latest"
 ENV TAG $TAG
+ARG DEPS_ARCH="x86_64"
 
 # Install reqs
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -20,7 +21,7 @@ ARG TF_BAZEL_BUILD_OPTS="-c opt --config monolithic --incompatible_no_support_to
 
 # Install Dependancies (Bazel, Protobuf, GPU Support, etc based on TAG)
 ADD builder/install_deps.sh /tmp/install_deps.sh
-RUN /tmp/install_deps.sh $TAG && rm /tmp/install_deps.sh
+RUN /tmp/install_deps.sh $DEPS_ARCH $TAG && rm /tmp/install_deps.sh
 
 # Download tensorflow sources
 RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git --branch $TF_VERSION --single-branch

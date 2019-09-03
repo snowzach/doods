@@ -2,6 +2,7 @@ module github.com/snowzach/doods
 
 require (
 	cloud.google.com/go v0.44.3 // indirect
+	github.com/blendle/zapdriver v1.1.6
 	github.com/go-chi/chi v4.0.2+incompatible
 	github.com/go-chi/render v1.0.1
 	github.com/gogo/protobuf v1.2.1

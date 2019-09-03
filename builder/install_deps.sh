@@ -3,15 +3,15 @@
 # If anything fails, exit
 set -e
 
-if [ $# -lt 1 ]; then
-    echo "$0 <arch> (k8,arm)"
+if [ $# -lt 2 ]; then
+    echo "$0 <arch> <config>"
     exit 1
 fi
 
 
-if [ "$1" == "latest" ] || [ "$1" == "x86avx" ] || [ "$1" == "gpu" ]; then
+if [ "$1" == "x86_64" ]; then
 
-    if [ "$1" == "gpu" ]; then
+    if [ "$2" == "gpu" ]; then
         apt-get -y --no-install-recommends install gnupg # Needed for curl/apt-key to work
         echo "Installing NVidia Drivers..."
         curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add -
@@ -60,7 +60,7 @@ if [ "$1" == "aarch64" ]; then
     exit 0
 fi
 
-if [ "$1" == "pi" ]; then
+if [ "$1" == "armh" ]; then
     echo "Compiling protoc 3.9.1 from source..."
     cd /tmp
     wget https://github.com/protocolbuffers/protobuf/releases/download/v3.9.1/protobuf-java-3.9.1.zip
