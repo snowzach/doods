@@ -121,7 +121,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 	}
 
 	// If the image is not a supported type, convert it to bmp
-	if imgType != "png" && imgType != "gif" && imgType != "jpg" && imgType != "bmp" {
+	if imgType != "png" && imgType != "gif" && imgType != "jpeg" && imgType != "bmp" {
 
 		// Encode as raw BMP
 		err = bmp.Encode(bytes.NewBuffer(request.Data), img)
@@ -142,7 +142,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 	switch imgType {
 	case "gif":
 		decodeOutput = op.DecodeGif(scope, imgInput)
-	case "jpg":
+	case "jpeg":
 		decodeOutput = op.DecodeJpeg(scope, imgInput, op.DecodeJpegChannels(3))
 	case "png":
 		decodeOutput = op.DecodePng(scope, imgInput, op.DecodePngChannels(3))

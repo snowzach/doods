@@ -82,10 +82,8 @@ func initConfig() {
 }
 
 func initLogger() {
-
 	conf.InitLogger()
 	logger = zap.S().With("package", "cmd")
-
 }
 
 // Profiler can explicitly listen on address/port
