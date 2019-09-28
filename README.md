@@ -169,3 +169,5 @@ Make the `snowzach/doods-builder:native` image followed by the `snowzach/doods:n
 ```
 $ make docker CONFIG=native
 ```
+
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=QG353JUXA6BFW&source=url)
