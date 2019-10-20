@@ -1,8 +1,7 @@
 ARG BUILDER_TAG="latest"
-FROM snowzach/doods-builder:$BUILDER_TAG as builder
+FROM registry.prozach.org/doods-builder:$BUILDER_TAG as builder
 
 # Create the build directory
-RUN mkdir /build
 WORKDIR /build
 ADD . .
 RUN make

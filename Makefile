@@ -50,10 +50,13 @@ deps:
 	# Fetching dependancies...
 	go get -d -v # Adding -u here will break CI
 
-docker: docker-builder docker-image
+docker: docker-base docker-builder docker-image
+
+docker-base:
+	docker build -t docker.io/snowzach/doods-base:${CONFIG} -f Dockerfile.base.${CONFIG} .
 
 docker-builder:
-	builder/doods-builder.sh ${CONFIG}
+	docker build -t docker.io/snowzach/doods-builder:${CONFIG} -f Dockerfile.builder.${CONFIG} .
 
 docker-image:
-	docker build -t snowzach/doods:${CONFIG} --build-arg BUILDER_TAG=${CONFIG} -f Dockerfile .
+	docker build -t docker.io/snowzach/doods:${CONFIG} --build-arg BUILDER_TAG=${CONFIG} -f Dockerfile .

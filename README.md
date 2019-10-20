@@ -53,7 +53,7 @@ You can also use "*" which will match anything with a minimum percentage.
 
 Example One Liner:
 ```
-echo "{\"detector_name\":\"default\", \"detect\":{\"*\":60}, \"data\":\"`cat grace_hopper.png|base64 -w0`\"}" > /tmp/postdata.json && curl -d@/tmp/postdata.json -H "Content-Type: application/json" -X POST http://localhass.prozach.org:8080/detect
+echo "{\"detector_name\":\"default\", \"detect\":{\"*\":60}, \"data\":\"`cat grace_hopper.png|base64 -w0`\"}" > /tmp/postdata.json && curl -d@/tmp/postdata.json -H "Content-Type: application/json" -X POST http://localhost:8080/detect
 ```
 
 ## Detectors

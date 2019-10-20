@@ -4,6 +4,7 @@ doods
 *.png
 *.bmp
 *.ppm
+*.jpg
 *.tflite
 *.zip
 private
