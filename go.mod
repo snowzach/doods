@@ -13,6 +13,7 @@ require (
 	github.com/lmittmann/ppm v1.0.0
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mattn/go-pointer v0.0.0-20190911064623-a0a44394634f
+	github.com/mattn/go-tflite v0.0.0-20190925125841-a6a375e71b50
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/pelletier/go-toml v1.5.0 // indirect
 	github.com/snowzach/certtools v1.0.2

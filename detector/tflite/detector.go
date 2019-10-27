@@ -16,6 +16,7 @@ import (
 
 	"github.com/snowzach/doods/detector/dconfig"
 	"github.com/snowzach/doods/odrpc"
+	"github.com/snowzach/doods/detector/tflite/delegates/edgetpu"
 )
 
 type detector struct {
@@ -67,13 +68,22 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 		}
 	}
 
+	var devices []edgetpu.Device
+
 	// If we are using edgetpu, make sure we have one
 	if c.HWAccel {
-		if !HasEdgeTPU() {
-			return nil, fmt.Errorf("no edgetpu detected")
+
+		// Get the list of devices
+		devices, err = edgetpu.DeviceList()
+		if err != nil {
+			return nil, fmt.Errorf("Could not fetch edgetpu device list: %v", err)
 		}
+		if len(devices) == 0 {
+			return nil, fmt.Errorf("no edgetpu devices detected")
+		}
+		c.NumConcurrent = len(devices)
 		d.config.Type = "tflite-edgetpu"
-		d.logger.Warn("Warnings about Failed to retrieve TPU context are normal")
+
 	}
 
 	var interpreter *Interpreter
@@ -89,13 +99,10 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 
 		// Use edgetpu
 		if c.HWAccel {
-			options.ExpAddCustomOp(EdgeTPUCustomOp, Register_EdgeTPU(), 1, 1)
-			interpreter = NewInterpreter(d.model, options)
-			EdgeTPUSetup(interpreter, d.model)
-		} else {
-			interpreter = NewInterpreter(d.model, options)
+			options.AddDelegate(edgetpu.New(devices[x]))
 		}
-
+	
+		interpreter = NewInterpreter(d.model, options)
 		if interpreter == nil {
 			return nil, fmt.Errorf("Could not create interpreter")
 		}

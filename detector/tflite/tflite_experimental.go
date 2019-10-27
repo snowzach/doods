@@ -93,8 +93,9 @@ import (
 
 const sizeof_int32_t = 4
 
+// ResetVariableTensors resets variable tensors.
 func (i *Interpreter) ResetVariableTensors() Status {
-	return Status(C.TFL_InterpreterResetVariableTensors(i.i))
+	return Status(C.TfLiteInterpreterResetVariableTensors(i.i))
 }
 
 /*
@@ -105,7 +106,7 @@ func (o *InterpreterOptions) AddCustomOp(name string, reg *Registration, minVers
 	ptr := C.CString(name)
 	defer C.free(unsafe.Pointer(ptr))
 	r := C._make_registration()
-	C.TFL_InterpreterOptionsAddCustomOp(o.o, ptr, r, C.int(minVersion), C.int(maxVersion))
+	C.TfLiteInterpreterOptionsAddCustomOp(o.o, ptr, r, C.int(minVersion), C.int(maxVersion))
 }
 
 type registration struct {
@@ -156,17 +157,13 @@ func _tflite_registration_profiling_string(ccxt *C.TfLiteContext, node *C.TfLite
 }
 */
 
+// ExtRegistration indicate registration structure.
 type ExpRegistration struct {
 	Init            unsafe.Pointer
 	Free            unsafe.Pointer
 	Prepare         unsafe.Pointer
 	Invoke          unsafe.Pointer
 	ProfilingString unsafe.Pointer
-}
-
-type TFContext struct {
-	Get   unsafe.Pointer
-	Reset unsafe.Pointer
 }
 
 type BuiltinOperator int
@@ -291,12 +288,6 @@ const (
 	BuiltinOperator_MAX                          BuiltinOperator = BuiltinOperator_MATRIX_SET_DIAG
 )
 
-type ExternalContextType int
-
-const (
-	ExternalContextType_EdgeTPUContext ExternalContextType = 2
-)
-
 // ExpAddBuiltinOp add builtin op specified by code and registration. Current implementation is work in progress.
 func (o *InterpreterOptions) ExpAddBuiltinOp(op BuiltinOperator, reg *ExpRegistration, minVersion, maxVersion int) {
 	r := C._make_registration(
@@ -306,7 +297,7 @@ func (o *InterpreterOptions) ExpAddBuiltinOp(op BuiltinOperator, reg *ExpRegistr
 		reg.Invoke,
 		reg.ProfilingString,
 	)
-	C.TFL_InterpreterOptionsAddBuiltinOp(o.o, C.TfLiteBuiltinOperator(op), r, C.int(minVersion), C.int(maxVersion))
+	C.TfLiteInterpreterOptionsAddBuiltinOp(o.o, C.TfLiteBuiltinOperator(op), r, C.int(minVersion), C.int(maxVersion))
 }
 
 // ExpAddCustomOp add custom op specified by name and registration. Current implementation is work in progress.
@@ -320,7 +311,7 @@ func (o *InterpreterOptions) ExpAddCustomOp(name string, reg *ExpRegistration, m
 		reg.Invoke,
 		reg.ProfilingString,
 	)
-	C.TFL_InterpreterOptionsAddCustomOp(o.o, ptr, r, C.int(minVersion), C.int(maxVersion))
+	C.TfLiteInterpreterOptionsAddCustomOp(o.o, ptr, r, C.int(minVersion), C.int(maxVersion))
 }
 
 // DynamicBuffer is buffer hold multiple strings.
@@ -376,6 +367,7 @@ func (d *DynamicBuffer) WriteToTensorAsVector(t *Tensor) {
 	C.writeToTensorAsVector(t.t, (*C.char)(unsafe.Pointer(&b[0])), C.size_t(len(b)), C.int(len(d.offset)))
 }
 
+// GetString returns string in the string buffer.
 func (t *Tensor) GetString(index int) string {
 	if t.Type() != String {
 		return ""

@@ -98,12 +98,11 @@ index 000000000..e5d8cc384
 +  ],
 +)
 diff --git a/WORKSPACE b/WORKSPACE
-index 7057d3f149..3fedb4f543 100644
 --- a/WORKSPACE
 +++ b/WORKSPACE
-@@ -56,6 +56,12 @@ android_workspace()
+@@ -18,6 +18,12 @@ load("//tensorflow:workspace.bzl", "tf_repositories")
  # Please add all new TensorFlow dependencies in workspace.bzl.
- tf_workspace()
+ tf_repositories()
 
 +new_local_repository(
 +    name = "local_arm_compiler",
@@ -111,9 +110,9 @@ index 7057d3f149..3fedb4f543 100644
 +    build_file = "BUILD.local_arm_compiler",
 +)
 +
- http_archive(
-     name = "inception_v1",
-     build_file = "//:models.BUILD",
+ load("@io_bazel_rules_closure//closure:defs.bzl", "closure_repositories")
+
+ closure_repositories()
 diff --git a/tools/local_arm_compiler/BUILD b/tools/local_arm_compiler/BUILD
 new file mode 100644
 index 000000000..ccddd6d50

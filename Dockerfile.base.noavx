@@ -28,7 +28,7 @@ ENV TF_NEED_GDR=0 TF_NEED_AWS=0 TF_NEED_GCP=0 TF_NEED_CUDA=0 TF_NEED_HDFS=0 TF_N
 RUN cd /opt/tensorflow && yes '' | ./configure
 
 # Tensorflow build flags for rpi
-ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --config monolithic --copt=-O3 --copt=-fomit-frame-pointer --copt=-mfpmath=both --copt=-mavx --copt=-msse4.2 --incompatible_no_support_tools_in_action_inputs=false --config=noaws --config=nogcp --config=nohdfs --config=nokafka --config=noignite"
+ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --config monolithic --copt=-O3 --copt=-fomit-frame-pointer --copt=-mfpmath=both --copt=-msse4.2 --incompatible_no_support_tools_in_action_inputs=false --config=noaws --config=nogcp --config=nohdfs --config=nokafka --config=noignite"
 ENV BAZEL_EXTRA_FLAGS=""
 
 # Compile and build tensorflow lite

@@ -20,6 +20,7 @@ COPY --from=base /opt/tensorflow /opt/tensorflow
 
 ENV GOOS=linux
 ENV CGO_ENABLED=1
+ENV CGO_CFLAGS=-I/opt/tensorflow
 ENV PATH /usr/local/go/bin:/go/bin:${PATH}
 ENV GOPATH /go
 

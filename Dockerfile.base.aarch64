@@ -1,11 +1,12 @@
 FROM debian:buster as builder
 
 # Install reqs with cross compile support
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN dpkg --add-architecture aarch64 && \
+    apt-get update && apt-get install -y --no-install-recommends \
     pkg-config zip zlib1g-dev unzip wget bash-completion git curl \
     build-essential patch g++ python python-future python3 \
     cmake ca-certificates \
-    libc6-dev libstdc++6 libusb-1.0-0
+    libc6-dev:aarch64 libstdc++6:aarch64 libusb-1.0-0:aarch64
 
 # Install protoc
 RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.9.1/protoc-3.9.1-linux-x86_64.zip && \
@@ -23,13 +24,21 @@ ARG TF_VERSION="r1.15"
 ENV TF_VERSION $TF_VERSION
 RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git --branch $TF_VERSION --single-branch
 
+# Download and configure the toolchain and patch tensorflow as needed
+ENV CROSSTOOL_COMPILER="yes"
+ENV CROSSTOOL_URL="https://releases.linaro.org/components/toolchain/binaries/5.5-2017.10/arm-linux-gnueabihf/gcc-linaro-5.5.0-2017.10-x86_64_arm-linux-gnueabihf.tar.xz"
+ENV CROSSTOOL_DIR="gcc-linaro-5.5.0-2017.10-x86_64_arm-linux-gnueabihf"
+ENV CROSSTOOL_NAME="arm-linux-gnueabihf"
+COPY tftoolchain.sh /opt/tftoolchain.sh
+RUN cd /opt/tensorflow && /opt/tftoolchain.sh
+
 # Configure tensorflow
 ENV TF_NEED_GDR=0 TF_NEED_AWS=0 TF_NEED_GCP=0 TF_NEED_CUDA=0 TF_NEED_HDFS=0 TF_NEED_OPENCL_SYCL=0 TF_NEED_VERBS=0 TF_NEED_MPI=0 TF_NEED_MKL=0 TF_NEED_JEMALLOC=1 TF_ENABLE_XLA=0 TF_NEED_S3=0 TF_NEED_KAFKA=0 TF_NEED_IGNITE=0 TF_NEED_ROCM=0
 RUN cd /opt/tensorflow && yes '' | ./configure
 
 # Tensorflow build flags for rpi
-ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --config monolithic --copt=-O3 --copt=-fomit-frame-pointer --copt=-mfpmath=both --copt=-mavx --copt=-msse4.2 --incompatible_no_support_tools_in_action_inputs=false --config=noaws --config=nogcp --config=nohdfs --config=nokafka --config=noignite"
-ENV BAZEL_EXTRA_FLAGS=""
+ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --copt=-march=armv8-a+crc+simd --copt=-mtune=cortex-a53 --copt=-O3 --copt=-flax-vector-conversions --copt=-std=c++11 --copt=-DS_IREAD=S_IRUSR --copt=-DS_IWRITE=S_IWUSR --config=monolithic --copt=-funsafe-math-optimizations --copt=-ftree-vectorize --copt=-fomit-frame-pointer --copt=-DRASPBERRY_PI --config=noaws --config=nogcp --config=nohdfs --config=nokafka --config=noignite --define tensorflow_mkldnn_contraction_kernel=0"
+ENV BAZEL_EXTRA_FLAGS="--cpu=armeabi --crosstool_top=//tools/local_arm_compiler:toolchain //tensorflow/tools/pip_package:build_pip_package"
 
 # Compile and build tensorflow lite
 RUN cd /opt/tensorflow && \
@@ -48,6 +57,37 @@ RUN cd /opt/tensorflow && \
 # cleanup so the cache directory isn't huge
 RUN cd /opt/tensorflow && \
     bazel clean && rm -Rf /root/.cache
+
+# Download and configure the build environment for gcc 6 which is needed to compile everything else
+RUN mkdir -p /tmp/sysroot/lib && mkdir -p /tmp/sysroot/usr/lib && \
+    cd /tmp && \
+    wget --no-check-certificate https://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/arm-linux-gnueabihf/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf.tar.xz -O toolchain.tar.xz && \
+    tar xf toolchain.tar.xz -C /opt/toolchain/ && \
+    rm toolchain.tar.xz && \
+    cp -r /opt/toolchain/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf/arm-linux-gnueabihf/libc/* /tmp/sysroot/
+RUN mkdir -p /tmp/debs && cd /tmp/debs && apt-get download libc6:aarch64 libc6-dev:aarch64 && \
+    ar x libc6_*.deb && tar xvf data.tar.xz && \
+    ar x libc6-dev*.deb && tar xvf data.tar.xz && \
+    cp -R usr /tmp/sysroot && cp -R lib /tmp/sysroot && rm -Rf /tmp/debs && \
+    mkdir -p /tmp/debs && cd /tmp/debs && \
+    apt-get download libusb-1.0-0:aarch64 libudev1:aarch64 zlib1g-dev:aarch64 zlib1g:aarch64 && \
+    ar x libusb-1.0*.deb && tar xvf data.tar.xz && \
+    ar x libudev1*.deb && tar xvf data.tar.xz && \
+    ar x zlib1g_*.deb && tar xvf data.tar.xz && \
+    ar x zlib1g-dev*.deb && tar xvf data.tar.xz && rm usr/lib/arm-linux-gnueabihf/libz.so && \
+    cp -r lib/arm-linux-gnueabihf/* /tmp/sysroot/lib && \
+    cp -r usr/lib/arm-linux-gnueabihf/* /tmp/sysroot/usr/lib && \
+    cp -r usr/include/* /tmp/sysroot/usr/include && \
+    ln -rs /tmp/sysroot/lib/libusb-1.0.so.0.1.0 /tmp/sysroot/lib/libusb-1.0.so && \
+    ln -rs /tmp/sysroot/lib/libudev.so.1.6.13 /tmp/sysroot/lib/libudev.so && \
+    ln -rs /tmp/sysroot/lib/libz.so.1.2.11 /tmp/sysroot/lib/libz.so && \
+    ln -s /usr/local /tmp/sysroot/usr/local && \
+    cd /tmp && rm -Rf /tmp/debs
+ENV CC="/opt/toolchain/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc"
+ENV CXX="/opt/toolchain/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-g++"
+ENV LDFLAGS="-v -L /lib -L /usr/lib --sysroot /tmp/sysroot"
+ENV CFLAGS="-L /lib -L /usr/lib --sysroot /tmp/sysroot"
+ENV CXXFLAGS="-L /lib -L /usr/lib --sysroot /tmp/sysroot"
 
 # Install GOCV
 ARG OPENCV_VERSION="4.0.1"
@@ -81,7 +121,7 @@ RUN cd /tmp && \
 
 # Download the edgetpu library and install it
 RUN cd /tmp && git clone https://github.com/google-coral/edgetpu.git && \
-    install edgetpu/libedgetpu/direct/k8/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so.1.0 && \
+    install edgetpu/libedgetpu/direct/aarch64/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so.1.0 && \
     ln -rs /usr/local/lib/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so.1 && \
     ln -rs /usr/local/lib/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so && \
     mkdir -p /usr/local/include/libedgetpu && \
@@ -90,5 +130,7 @@ RUN cd /tmp && git clone https://github.com/google-coral/edgetpu.git && \
     rm -Rf edgetpu
 
 # Configure the Go version to be used
-ENV GO_ARCH "amd64"
-ENV GOARCH=amd64
+ENV GO_ARCH "armv6l"
+ENV GOARCH=arm
+
+
