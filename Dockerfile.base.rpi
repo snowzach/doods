@@ -90,7 +90,7 @@ ENV CFLAGS="-L /lib -L /usr/lib --sysroot /tmp/sysroot"
 ENV CXXFLAGS="-L /lib -L /usr/lib --sysroot /tmp/sysroot"
 
 # Install GOCV
-ARG OPENCV_VERSION="4.0.1"
+ARG OPENCV_VERSION="4.1.2"
 ENV OPENCV_VERSION $OPENCV_VERSION
 RUN cd /tmp && \
     curl -Lo opencv.zip https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip && \
@@ -103,6 +103,7 @@ RUN cd /tmp && \
     cmake -D CMAKE_BUILD_TYPE=RELEASE \
     -D CMAKE_INSTALL_PREFIX=/usr/local \
     -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib-${OPENCV_VERSION}/modules \
+    -D CMAKE_TOOLCHAIN_FILE=/tmp/opencv-${OPENCV_VERSION}/platforms/linux/arm-gnueabi.toolchain.cmake \
     -D WITH_JASPER=OFF \
     -D WITH_QT=OFF \
     -D WITH_GTK=OFF \

@@ -50,7 +50,7 @@ RUN cd /opt/tensorflow && \
     bazel clean && rm -Rf /root/.cache
 
 # Install GOCV
-ARG OPENCV_VERSION="4.0.1"
+ARG OPENCV_VERSION="4.1.2"
 ENV OPENCV_VERSION $OPENCV_VERSION
 RUN cd /tmp && \
     curl -Lo opencv.zip https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip && \
