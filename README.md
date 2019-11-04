@@ -133,7 +133,10 @@ doods:
 ```
 The default model is downloaded from google: coco_ssd_mobilenet_v1_1.0_quant_2018_06_29
 
-### Detectors
+The `numThreads` option is the number of threads that will be available for compatible operations in a model
+The `numConcurrent` option sets the number of models that will be able to run at the same time. This should be 1 unless you have a beefy machine.
+
+### Detector Types Supported
  * tflite - Tensorflow lite models - Supports Coral EdgeTPU if hwAccel: true and appropriate model is used
  * tensorflow - Tensorflow 
 
@@ -159,9 +162,11 @@ And special thanks to @marianopeck and @PINTO0309 for help in building tensorflo
 ## Docker Images
 There are several published Docker images that you can use
 
-* latest - This is an x86_64 image with no features or optimizations. This should run on just about any 64 bit x86.
-* x86avx - This is an x64_64 with AVX and SSE4.2 features enabled. Use this for newer, more powerful x86
-* pi - This is for a Raspberry Pi
+* latest - This is a multi-arch image that points to the rpi image, aarch64 and noavx image
+* noavx - 64 bit x86 image that should be a highly compatible with any cpu. 
+* aarch64 - Arm 64 bit image
+* rpi - Arm 32 bit/arm7 image optimized for the Raspberry Pi
+* amd64 - 64 bit x86 image with all the fancy cpu features like avx and sse4.2
 
 ## Compiling
 You can compile it yourself using the native config which should optimize for whatever you have installed. 
