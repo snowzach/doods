@@ -11,12 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mattn/go-tflite"
+	"github.com/mattn/go-tflite/delegates/edgetpu"
 	"github.com/nfnt/resize"
 	"go.uber.org/zap"
 
 	"github.com/snowzach/doods/detector/dconfig"
 	"github.com/snowzach/doods/odrpc"
-	"github.com/snowzach/doods/detector/tflite/delegates/edgetpu"
 )
 
 type detector struct {
@@ -24,9 +25,9 @@ type detector struct {
 	logger *zap.SugaredLogger
 
 	labels    map[int]string
-	model     *Model
-	inputType TensorType
-	pool      chan *Interpreter
+	model     *tflite.Model
+	inputType tflite.TensorType
+	pool      chan *tflite.Interpreter
 }
 
 func New(c *dconfig.DetectorConfig) (*detector, error) {
@@ -34,7 +35,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 	d := &detector{
 		labels: make(map[int]string),
 		logger: zap.S().With("package", "detector.tflite"),
-		pool:   make(chan *Interpreter, c.NumConcurrent),
+		pool:   make(chan *tflite.Interpreter, c.NumConcurrent),
 	}
 
 	d.config.Name = c.Name
@@ -43,7 +44,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 	d.config.Labels = make([]string, 0)
 
 	// Create the model
-	d.model = NewModelFromFile(d.config.Model)
+	d.model = tflite.NewModelFromFile(d.config.Model)
 	if d.model == nil {
 		return nil, fmt.Errorf("could not load model %s", d.config.Model)
 	}
@@ -86,11 +87,11 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 
 	}
 
-	var interpreter *Interpreter
+	var interpreter *tflite.Interpreter
 
 	for x := 0; x < c.NumConcurrent; x++ {
 		// Options
-		options := NewInterpreterOptions()
+		options := tflite.NewInterpreterOptions()
 		options.SetNumThread(c.NumThreads)
 		options.SetErrorReporter(func(msg string, user_data interface{}) {
 			d.logger.Warnw("Error", "message", msg, "user_data", user_data)
@@ -101,15 +102,15 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 		if c.HWAccel {
 			options.AddDelegate(edgetpu.New(devices[x]))
 		}
-	
-		interpreter = NewInterpreter(d.model, options)
+
+		interpreter = tflite.NewInterpreter(d.model, options)
 		if interpreter == nil {
 			return nil, fmt.Errorf("Could not create interpreter")
 		}
 
 		// Allocate
 		status := interpreter.AllocateTensors()
-		if status != OK {
+		if status != tflite.OK {
 			return nil, fmt.Errorf("interpreter allocate failed")
 		}
 
@@ -123,7 +124,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 	d.config.Width = int32(input.Dim(2))
 	d.config.Channels = int32(input.Dim(3))
 	d.inputType = input.Type()
-	if d.inputType != UInt8 {
+	if d.inputType != tflite.UInt8 {
 		return nil, fmt.Errorf("unsupported tensor input type: %s", d.inputType)
 	}
 
@@ -200,7 +201,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 	start := time.Now()
 
 	invokeStatus := interpreter.Invoke()
-	if invokeStatus != OK {
+	if invokeStatus != tflite.OK {
 		return &odrpc.DetectResponse{
 			Id:    request.Id,
 			Error: fmt.Sprintf("detect failed"),
