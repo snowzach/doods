@@ -11,7 +11,9 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"sync"
+	"time"
 
+	empty "github.com/golang/protobuf/ptypes/empty"
 	"github.com/hybridgroup/mjpeg"
 	"gocv.io/x/gocv"
 	"google.golang.org/grpc"
@@ -59,22 +61,43 @@ func main() {
 	log.Fatal(http.ListenAndServe(host, nil))
 }
 
-func mjpegCapture(server string, detector string) {
+func mjpegCapture(server string, detectorName string) {
 
 	dialOptions := []grpc.DialOption{
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
+		grpc.WithTimeout(5 * time.Second),
+		grpc.WithMaxMsgSize(64000000),
 	}
 
 	// Set up a connection to the gRPC server.
 	conn, err := grpc.Dial(server, dialOptions...)
 	if err != nil {
-		log.Fatalf("Could not connect: %v", err)
+		log.Fatalf("Could not connect to doods: %v", err)
 	}
 	defer conn.Close()
 
 	// gRPC version Client
 	client := odrpc.NewOdrpcClient(conn)
+
+	// Fetch the detectors available
+	detectorsResponse, err := client.GetDetectors(context.Background(), &empty.Empty{})
+	if err != nil {
+		log.Fatalf("Could not get detectors: %v", err)
+	}
+	// Find our requested detector
+	var detector *odrpc.Detector
+	for _, d := range detectorsResponse.Detectors {
+		if d.Name == detectorName {
+			detector = d
+			break
+		}
+	}
+	if detector == nil {
+		log.Fatalf("Could not find detector: %s\n", detectorName)
+	}
+
+	// Start the stream
 	detectStream, err := client.DetectStream(context.Background())
 	if err != nil {
 		log.Fatalf("Could not stream: %v", err)
@@ -85,7 +108,7 @@ func mjpegCapture(server string, detector string) {
 	detectImg := gocv.NewMat()
 	defer detectImg.Close()
 
-	// color for the rect when faces detected
+	// color for the rect for detectins
 	green := color.RGBA{0, 255, 0, 0}
 	var rs = make([]image.Rectangle, 0)
 	var labels = make([]string, 0)
@@ -94,6 +117,7 @@ func mjpegCapture(server string, detector string) {
 	var detectorReady bool = true
 
 	for {
+		// Read an image
 		if ok := capture.Read(&img); !ok {
 			fmt.Printf("Device closed: %v\n", deviceID)
 			return
@@ -101,22 +125,34 @@ func mjpegCapture(server string, detector string) {
 		if img.Empty() {
 			continue
 		}
+		height := img.Rows()
+		width := img.Cols()
 
+		// Setup detection
 		request := &odrpc.DetectRequest{
-			DetectorName: detector,
+			DetectorName: detector.Name,
 			Detect: map[string]float32{
 				"*": 60, //
 			},
 		}
 
-		gocv.Resize(img.Region(image.Rectangle{Min: image.Point{X: 0, Y: 0}, Max: image.Point{X: 1080, Y: 1080}}), &detectImg, image.Point{X: 300, Y: 300}, 0.0, 0.0, gocv.InterpolationNearestNeighbor)
-		request.Data, err = gocv.IMEncode(".bmp", detectImg)
-		if err != nil {
-			continue
-		}
-
 		m.Lock()
 		if detectorReady {
+
+			// If the detector requires a specific size, resize before setting the data to the detector
+			if detector.Width > 0 {
+				gocv.Resize(img.Region(image.Rectangle{Min: image.Point{X: 0, Y: 0}, Max: image.Point{X: width, Y: height}}), &detectImg, image.Point{X: int(detector.Width), Y: int(detector.Height)}, 0.0, 0.0, gocv.InterpolationNearestNeighbor)
+				request.Data, err = gocv.IMEncode(".bmp", detectImg)
+				if err != nil {
+					continue
+				}
+			} else {
+				request.Data, err = gocv.IMEncode(".bmp", img)
+				if err != nil {
+					continue
+				}
+			}
+
 			detectorReady = false
 			if err := detectStream.Send(request); err != nil {
 				log.Fatalf("could not stream send %v", err)
@@ -138,8 +174,8 @@ func mjpegCapture(server string, detector string) {
 				confidences = make([]float32, detections, detections)
 				for x := 0; x < detections; x++ {
 					rs[x] = image.Rectangle{
-						Min: image.Point{X: int(response.Detections[x].Left * 1080), Y: int(response.Detections[x].Top * 1080)},
-						Max: image.Point{X: int(response.Detections[x].Right * 1080), Y: int(response.Detections[x].Bottom * 1080)},
+						Min: image.Point{X: int(response.Detections[x].Left * float32(width)), Y: int(response.Detections[x].Top * float32(height))},
+						Max: image.Point{X: int(response.Detections[x].Right * float32(width)), Y: int(response.Detections[x].Bottom * float32(height))},
 					}
 					labels[x] = response.Detections[x].Label
 					confidences[x] = response.Detections[x].Confidence
@@ -150,6 +186,7 @@ func mjpegCapture(server string, detector string) {
 		}
 		m.Unlock()
 
+		// Keep drawing the same rectangles until a new detection is ready
 		for x := 0; x < len(rs); x++ {
 			gocv.Rectangle(&img, rs[x], green, 1)
 			pt := image.Pt(rs[x].Min.X, rs[x].Min.Y-2)

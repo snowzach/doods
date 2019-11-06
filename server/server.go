@@ -152,6 +152,7 @@ func New() (*Server, error) {
 	serverOptions := []grpc.ServerOption{
 		grpc_middleware.WithStreamServerChain(streamInterceptors...),
 		grpc_middleware.WithUnaryServerChain(unaryInterceptors...),
+		grpc.MaxRecvMsgSize(config.GetInt("server.max_msg_size")),
 	}
 
 	// Create gRPC Server
