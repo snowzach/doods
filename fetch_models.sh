@@ -16,13 +16,13 @@ doods:
       type: tflite
       modelFile: models/coco_ssd_mobilenet_v1_1.0_quant.tflite
       labelFile: models/coco_labels0.txt
-      numThreads: 4
+      numThreads: 0
       numConcurrent: 4 
     - name: edgetpu
       type: tflite
       modelFile: models/mobilenet_ssd_v2_coco_quant_postprocess_edgetpu.tflite
       labelFile: models/coco_labels0.txt
-      numThreads: 4
+      numThreads: 0
       numConcurrent: 4
       hwAccel: true
     - name: tensorflow
@@ -31,6 +31,6 @@ doods:
       labelFile: models/coco_labels1.txt
       width: 224
       height: 224
-      numThreads: 4
+      numThreads: 0
       numConcurrent: 4 
 EOF

@@ -15,8 +15,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/snowzach/doods/detector/dconfig"
-	"github.com/snowzach/doods/odrpc"
 	"github.com/snowzach/doods/detector/tflite/delegates/edgetpu"
+	"github.com/snowzach/doods/odrpc"
 )
 
 type detector struct {
@@ -99,9 +99,13 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 
 		// Use edgetpu
 		if c.HWAccel {
-			options.AddDelegate(edgetpu.New(devices[x]))
+			etpuInstance := edgetpu.New(devices[x])
+			if etpuInstance == nil {
+				return nil, fmt.Errorf("could not initialize edgetpu %s", devices[x].Path)
+			}
+			options.AddDelegate(etpuInstance)
 		}
-	
+
 		interpreter = NewInterpreter(d.model, options)
 		if interpreter == nil {
 			return nil, fmt.Errorf("Could not create interpreter")
