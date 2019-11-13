@@ -138,6 +138,7 @@ type Status int
 
 const (
 	OK Status = 0
+	FAILED Status = 1
 	Error
 )
 

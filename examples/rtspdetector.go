@@ -14,7 +14,7 @@ import (
 	"time"
 
 	empty "github.com/golang/protobuf/ptypes/empty"
-	"github.com/hybridgroup/mjpeg"
+	"github.com/snowzach/mjpeg"
 	"gocv.io/x/gocv"
 	"google.golang.org/grpc"
 
@@ -49,7 +49,7 @@ func main() {
 	defer capture.Close()
 
 	// create the mjpeg stream
-	stream = mjpeg.NewStream()
+	stream = mjpeg.NewStream(50 * time.Millisecond)
 
 	// start capturing
 	go mjpegCapture(server, detector)
@@ -132,7 +132,7 @@ func mjpegCapture(server string, detectorName string) {
 		request := &odrpc.DetectRequest{
 			DetectorName: detector.Name,
 			Detect: map[string]float32{
-				"*": 60, //
+				"*": 90, //
 			},
 		}
 

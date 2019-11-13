@@ -26,15 +26,26 @@ type detector struct {
 	labels    map[int]string
 	model     *Model
 	inputType TensorType
-	pool      chan *Interpreter
+	pool      chan *tflInterpreter
+
+	devices    []edgetpu.Device
+	numThreads int
+	hwAccel    bool
+}
+
+type tflInterpreter struct {
+	device *edgetpu.Device
+	*Interpreter
 }
 
 func New(c *dconfig.DetectorConfig) (*detector, error) {
 
 	d := &detector{
-		labels: make(map[int]string),
-		logger: zap.S().With("package", "detector.tflite"),
-		pool:   make(chan *Interpreter, c.NumConcurrent),
+		labels:     make(map[int]string),
+		logger:     zap.S().With("package", "detector.tflite", "name", c.Name),
+		pool:       make(chan *tflInterpreter, c.NumConcurrent),
+		numThreads: c.NumThreads,
+		hwAccel:    c.HWAccel,
 	}
 
 	d.config.Name = c.Name
@@ -68,60 +79,42 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 		}
 	}
 
-	var devices []edgetpu.Device
-
 	// If we are using edgetpu, make sure we have one
-	if c.HWAccel {
+	if d.hwAccel {
 
 		// Get the list of devices
-		devices, err = edgetpu.DeviceList()
+		d.devices, err = edgetpu.DeviceList()
 		if err != nil {
 			return nil, fmt.Errorf("Could not fetch edgetpu device list: %v", err)
 		}
-		if len(devices) == 0 {
+		if len(d.devices) == 0 {
 			return nil, fmt.Errorf("no edgetpu devices detected")
 		}
-		c.NumConcurrent = len(devices)
+		c.NumConcurrent = len(d.devices)
 		d.config.Type = "tflite-edgetpu"
 
 	}
 
-	var interpreter *Interpreter
-
+	// Create the pool of interpreters
+	var interpreter *tflInterpreter
 	for x := 0; x < c.NumConcurrent; x++ {
-		// Options
-		options := NewInterpreterOptions()
-		options.SetNumThread(c.NumThreads)
-		options.SetErrorReporter(func(msg string, user_data interface{}) {
-			d.logger.Warnw("Error", "message", msg, "user_data", user_data)
-		}, nil)
-		defer options.Delete()
 
-		// Use edgetpu
-		if c.HWAccel {
-			etpuInstance := edgetpu.New(devices[x])
-			if etpuInstance == nil {
-				return nil, fmt.Errorf("could not initialize edgetpu %s", devices[x].Path)
-			}
-			options.AddDelegate(etpuInstance)
+		interpreter = new(tflInterpreter)
+
+		// Get a device if there is one
+		if d.hwAccel {
+			interpreter.device = &d.devices[x]
 		}
 
-		interpreter = NewInterpreter(d.model, options)
-		if interpreter == nil {
-			return nil, fmt.Errorf("Could not create interpreter")
-		}
-
-		// Allocate
-		status := interpreter.AllocateTensors()
-		if status != OK {
-			return nil, fmt.Errorf("interpreter allocate failed")
+		interpreter.Interpreter, err = d.newInterpreter(interpreter.device)
+		if err != nil {
+			return nil, err
 		}
 
 		d.pool <- interpreter
-
 	}
 
-	// Get the settings
+	// Get the settings from the last one
 	input := interpreter.GetInputTensor(0)
 	d.config.Height = int32(input.Dim(1))
 	d.config.Width = int32(input.Dim(2))
@@ -132,6 +125,37 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 	}
 
 	return d, nil
+}
+
+func (d *detector) newInterpreter(device *edgetpu.Device) (*Interpreter, error) {
+	// Options
+	options := NewInterpreterOptions()
+	options.SetNumThread(d.numThreads)
+	options.SetErrorReporter(func(msg string, user_data interface{}) {
+		d.logger.Warnw("Error", "message", msg, "user_data", user_data)
+	}, nil)
+
+	// Use edgetpu
+	if device != nil {
+		etpuInstance := edgetpu.New(*device)
+		if etpuInstance == nil {
+			return nil, fmt.Errorf("could not initialize edgetpu %s", device.Path)
+		}
+		options.AddDelegate(etpuInstance)
+	}
+
+	interpreter := NewInterpreter(d.model, options)
+	if interpreter == nil {
+		return nil, fmt.Errorf("Could not create interpreter")
+	}
+
+	// Allocate
+	status := interpreter.AllocateTensors()
+	if status != OK {
+		return nil, fmt.Errorf("interpreter allocate failed")
+	}
+
+	return interpreter, nil
 }
 
 func (d *detector) Config() *odrpc.Detector {
@@ -203,7 +227,23 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 
 	start := time.Now()
 
-	invokeStatus := interpreter.Invoke()
+	var invokeStatus Status
+	complete := make(chan struct{})
+
+	go func() {
+		invokeStatus = interpreter.Invoke()
+		close(complete)
+	}()
+
+	// Wait for complete or timeout
+	select {
+	case <-complete:
+		// We're done
+	case <-time.After(2 * time.Minute):
+		// It timed out, we will return the interpreter to the pool, hopefully it will still function
+		invokeStatus = FAILED
+	}
+
 	if invokeStatus != OK {
 		return &odrpc.DetectResponse{
 			Id:    request.Id,

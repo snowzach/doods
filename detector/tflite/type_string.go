@@ -15,9 +15,9 @@ func (i TensorType) String() string {
 	return _TensorType_name[_TensorType_index[i]:_TensorType_index[i+1]]
 }
 
-const _Status_name = "OK"
+const _Status_name = "OKFAILED"
 
-var _Status_index = [...]uint8{0, 2}
+var _Status_index = [...]uint8{0, 2, 8}
 
 func (i Status) String() string {
 	if i < 0 || i >= Status(len(_Status_index)-1) {

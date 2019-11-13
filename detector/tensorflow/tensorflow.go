@@ -34,7 +34,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 
 	d := &detector{
 		labels: make(map[int]string),
-		logger: zap.S().With("package", "detector.tensorflow"),
+		logger: zap.S().With("package", "detector.tensorflow", "name", c.Name),
 		pool:   make(chan *tf.Session, c.NumConcurrent),
 	}
 
@@ -112,7 +112,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 	}()
 
 	// Determine the image type
-	img, imgType, err := image.Decode(bytes.NewReader(request.Data))
+	_, imgType, err := image.DecodeConfig(bytes.NewReader(request.Data))
 	if err != nil {
 		return &odrpc.DetectResponse{
 			Id:    request.Id,
@@ -122,6 +122,14 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 
 	// If the image is not a supported type, convert it to bmp
 	if imgType != "png" && imgType != "gif" && imgType != "jpeg" && imgType != "bmp" {
+
+		img, _, err := image.Decode(bytes.NewReader(request.Data))
+		if err != nil {
+			return &odrpc.DetectResponse{
+				Id:    request.Id,
+				Error: fmt.Sprintf("Could not decode image: %v", err),
+			}
+		}
 
 		// Encode as raw BMP
 		err = bmp.Encode(bytes.NewBuffer(request.Data), img)
@@ -143,11 +151,11 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 	case "gif":
 		decodeOutput = op.DecodeGif(scope, imgInput)
 	case "jpeg":
-		decodeOutput = op.DecodeJpeg(scope, imgInput, op.DecodeJpegChannels(3))
+		decodeOutput = op.DecodeJpeg(scope, imgInput)
 	case "png":
-		decodeOutput = op.DecodePng(scope, imgInput, op.DecodePngChannels(3))
+		decodeOutput = op.DecodePng(scope, imgInput)
 	case "bmp":
-		decodeOutput = op.DecodeBmp(scope, imgInput, op.DecodeBmpChannels(3))
+		decodeOutput = op.DecodeBmp(scope, imgInput)
 	}
 
 	imgOutput := op.ExpandDims(scope, decodeOutput, op.Const(scope.SubScope("make_batch"), int32(0)))
