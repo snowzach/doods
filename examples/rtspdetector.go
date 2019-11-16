@@ -142,12 +142,12 @@ func mjpegCapture(server string, detectorName string) {
 			// If the detector requires a specific size, resize before setting the data to the detector
 			if detector.Width > 0 {
 				gocv.Resize(img.Region(image.Rectangle{Min: image.Point{X: 0, Y: 0}, Max: image.Point{X: width, Y: height}}), &detectImg, image.Point{X: int(detector.Width), Y: int(detector.Height)}, 0.0, 0.0, gocv.InterpolationNearestNeighbor)
-				request.Data, err = gocv.IMEncode(".bmp", detectImg)
+				request.Data, err = gocv.IMEncode(".ppm", detectImg)
 				if err != nil {
 					continue
 				}
 			} else {
-				request.Data, err = gocv.IMEncode(".bmp", img)
+				request.Data, err = gocv.IMEncode(".ppm", img)
 				if err != nil {
 					continue
 				}
@@ -184,7 +184,6 @@ func mjpegCapture(server string, detectorName string) {
 				m.Unlock()
 			}()
 		}
-		m.Unlock()
 
 		// Keep drawing the same rectangles until a new detection is ready
 		for x := 0; x < len(rs); x++ {
@@ -192,6 +191,7 @@ func mjpegCapture(server string, detectorName string) {
 			pt := image.Pt(rs[x].Min.X, rs[x].Min.Y-2)
 			gocv.PutText(&img, fmt.Sprintf("%s %0.0f", labels[x], confidences[x]), pt, gocv.FontHersheyPlain, 1.5, green, 1)
 		}
+		m.Unlock()
 
 		// re-encode with boxes
 		request.Data, err = gocv.IMEncode(".jpg", img)

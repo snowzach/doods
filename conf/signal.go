@@ -67,3 +67,9 @@ func (s *stop) Bool() bool {
 		return false
 	}
 }
+
+// This will force a stop
+func (s *stop) Stop() {
+	close(Stop.c)
+	Stop.cancel()
+}

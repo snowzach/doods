@@ -81,7 +81,7 @@ RUN cd /tmp && \
 
 # Download the edgetpu library and install it
 RUN cd /tmp && git clone https://github.com/google-coral/edgetpu.git && \
-    install edgetpu/libedgetpu/direct/k8/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so.1.0 && \
+    install edgetpu/libedgetpu/throttled/k8/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so.1.0 && \
     ln -rs /usr/local/lib/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so.1 && \
     ln -rs /usr/local/lib/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so && \
     mkdir -p /usr/local/include/libedgetpu && \

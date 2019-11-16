@@ -8,7 +8,7 @@ require (
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0
-	github.com/grpc-ecosystem/grpc-gateway v1.12.0
+	github.com/grpc-ecosystem/grpc-gateway v1.12.1
 	github.com/hybridgroup/mjpeg v0.0.0-20140228234708-4680f319790e
 	github.com/lmittmann/ppm v1.0.0
 	github.com/mattn/go-pointer v0.0.0-20190911064623-a0a44394634f

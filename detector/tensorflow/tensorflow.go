@@ -17,6 +17,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/image/bmp"
 
+	"github.com/snowzach/doods/conf"
 	"github.com/snowzach/doods/detector/dconfig"
 	"github.com/snowzach/doods/odrpc"
 )
@@ -107,8 +108,10 @@ func (d *detector) Shutdown() {
 func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *odrpc.DetectResponse {
 
 	sess := <-d.pool
+	conf.Stop.Add(1) // Wait until detection complete before stopping
 	defer func() {
 		d.pool <- sess
+		conf.Stop.Done()
 	}()
 
 	// Determine the image type

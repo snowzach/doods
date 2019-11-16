@@ -14,6 +14,7 @@ import (
 	"github.com/nfnt/resize"
 	"go.uber.org/zap"
 
+	"github.com/snowzach/doods/conf"
 	"github.com/snowzach/doods/detector/dconfig"
 	"github.com/snowzach/doods/detector/tflite/delegates/edgetpu"
 	"github.com/snowzach/doods/odrpc"
@@ -31,6 +32,7 @@ type detector struct {
 	devices    []edgetpu.Device
 	numThreads int
 	hwAccel    bool
+	timeout    time.Duration
 }
 
 type tflInterpreter struct {
@@ -46,6 +48,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 		pool:       make(chan *tflInterpreter, c.NumConcurrent),
 		numThreads: c.NumThreads,
 		hwAccel:    c.HWAccel,
+		timeout:    c.Timeout,
 	}
 
 	d.config.Name = c.Name
@@ -217,8 +220,10 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 
 	// Get an interpreter from the pool
 	interpreter := <-d.pool
+	conf.Stop.Add(1) // Wait until detection complete before stopping
 	defer func() {
 		d.pool <- interpreter
+		conf.Stop.Done()
 	}()
 
 	// Build the tensor input
@@ -227,30 +232,32 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 
 	start := time.Now()
 
+	// Perform the detection
 	var invokeStatus Status
 	complete := make(chan struct{})
-
 	go func() {
 		invokeStatus = interpreter.Invoke()
 		close(complete)
 	}()
 
-	// Wait for complete or timeout
-	select {
-	case <-complete:
-		// We're done
-	case <-time.After(2 * time.Minute):
-		// It timed out, we will return the interpreter to the pool, hopefully it will still function
-		invokeStatus = FAILED
-	}
-
-	if invokeStatus != OK {
-		return &odrpc.DetectResponse{
-			Id:    request.Id,
-			Error: fmt.Sprintf("detect failed"),
+	// Wait for complete or timeout if there is one set
+	if d.timeout > 0 {
+		select {
+		case <-complete:
+			// We're done
+		case <-time.After(d.timeout):
+			// The detector is hung, it needs to be reinitialized
+			d.logger.Errorw("Detector timeout", zap.Any("device", interpreter.device))
+			conf.Stop.Stop() // Exit after all threads complete
+			return &odrpc.DetectResponse{
+				Id:    request.Id,
+				Error: fmt.Sprintf("detect failed"),
+			}
 		}
 	}
+	<-complete // Complete no timeout
 
+	// Parse results
 	countResult := make([]float32, 1, 1)
 	interpreter.GetOutputTensor(3).CopyToBuffer(&countResult[0])
 	count := int(countResult[0])
@@ -311,10 +318,10 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 		}
 		detections = append(detections, detection)
 
-		d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence, "location", fmt.Sprintf("%f,%f,%f,%f", detection.Top, detection.Left, detection.Bottom, detection.Right))
+		d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence,  "location", fmt.Sprintf("%f,%f,%f,%f", detection.Top, detection.Left, detection.Bottom, detection.Right))
 	}
 
-	d.logger.Infow("Detection Complete", "id", request.Id, "duration", time.Since(start), "detections", len(detections))
+	d.logger.Infow("Detection Complete", "id", request.Id, "duration", time.Since(start), "detections", len(detections), zap.Any("device", interpreter.device))
 
 	return &odrpc.DetectResponse{
 		Id:         request.Id,
