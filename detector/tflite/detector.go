@@ -13,6 +13,8 @@ import (
 
 	"github.com/nfnt/resize"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
 
 	"github.com/snowzach/doods/conf"
 	"github.com/snowzach/doods/detector/dconfig"
@@ -96,6 +98,11 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 		c.NumConcurrent = len(d.devices)
 		d.config.Type = "tflite-edgetpu"
 
+		// Enforce a timeout for edgetpu devices if not set
+		if d.timeout == 0 {
+			d.timeout = 30 * time.Second
+		}
+
 	}
 
 	// Create the pool of interpreters
@@ -176,7 +183,7 @@ func (d *detector) Shutdown() {
 	}
 }
 
-func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *odrpc.DetectResponse {
+func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*odrpc.DetectResponse, error) {
 
 	var data []byte
 	var dx, dy int32
@@ -190,10 +197,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 		// Decode the image
 		img, format, err := image.Decode(bytes.NewReader(request.Data))
 		if err != nil {
-			return &odrpc.DetectResponse{
-				Id:    request.Id,
-				Error: fmt.Sprintf("Could not decode: %v", err),
-			}
+			return nil, status.Errorf(codes.InvalidArgument, "could not decode image: %v", err)
 		}
 
 		// Resize it if necessary
@@ -249,10 +253,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 			// The detector is hung, it needs to be reinitialized
 			d.logger.Errorw("Detector timeout", zap.Any("device", interpreter.device))
 			conf.Stop.Stop() // Exit after all threads complete
-			return &odrpc.DetectResponse{
-				Id:    request.Id,
-				Error: fmt.Sprintf("detect failed"),
-			}
+			return nil, status.Errorf(codes.Internal, "detect failed")
 		}
 	}
 	<-complete // Complete no timeout
@@ -326,5 +327,5 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 	return &odrpc.DetectResponse{
 		Id:         request.Id,
 		Detections: detections,
-	}
+	}, nil
 }

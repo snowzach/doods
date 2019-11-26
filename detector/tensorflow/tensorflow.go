@@ -16,6 +16,8 @@ import (
 	"github.com/tensorflow/tensorflow/tensorflow/go/op"
 	"go.uber.org/zap"
 	"golang.org/x/image/bmp"
+	"google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
 
 	"github.com/snowzach/doods/conf"
 	"github.com/snowzach/doods/detector/dconfig"
@@ -105,7 +107,7 @@ func (d *detector) Shutdown() {
 	}
 }
 
-func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *odrpc.DetectResponse {
+func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*odrpc.DetectResponse, error) {
 
 	sess := <-d.pool
 	conf.Stop.Add(1) // Wait until detection complete before stopping
@@ -117,10 +119,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 	// Determine the image type
 	_, imgType, err := image.DecodeConfig(bytes.NewReader(request.Data))
 	if err != nil {
-		return &odrpc.DetectResponse{
-			Id:    request.Id,
-			Error: fmt.Sprintf("Could not decode image: %v", err),
-		}
+		return nil, status.Errorf(codes.InvalidArgument, "could not decode image: %v", err)
 	}
 
 	// If the image is not a supported type, convert it to bmp
@@ -128,19 +127,13 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 
 		img, _, err := image.Decode(bytes.NewReader(request.Data))
 		if err != nil {
-			return &odrpc.DetectResponse{
-				Id:    request.Id,
-				Error: fmt.Sprintf("Could not decode image: %v", err),
-			}
+			return nil, status.Errorf(codes.InvalidArgument, "could not decode image: %v", err)
 		}
 
 		// Encode as raw BMP
 		err = bmp.Encode(bytes.NewBuffer(request.Data), img)
 		if err != nil {
-			return &odrpc.DetectResponse{
-				Id:    request.Id,
-				Error: fmt.Sprintf("error encoding bmp %v", err),
-			}
+			return nil, status.Errorf(codes.Internal, "could not encode bmp: %v", err)
 		}
 		imgType = "bmp"
 
@@ -166,28 +159,19 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 
 	imgTensor, err := tf.NewTensor(string(request.Data)) // FIX: Convert back to string
 	if err != nil {
-		return &odrpc.DetectResponse{
-			Id:    request.Id,
-			Error: fmt.Sprintf("could not create input tensor %v", err),
-		}
+		return nil, status.Errorf(codes.Internal, "could not create input tensor: %v", err)
 	}
 
 	// Execute that graph to decode this one image
 	imgSess, err := tf.NewSession(graph, nil)
 	if err != nil {
-		return &odrpc.DetectResponse{
-			Id:    request.Id,
-			Error: fmt.Sprintf("could not create image session %v", err),
-		}
+		return nil, status.Errorf(codes.Internal, "could not create image session: %v", err)
 	}
 
 	// Run the detection
 	decodedImgTensor, err := imgSess.Run(map[tf.Output]*tf.Tensor{imgInput: imgTensor}, []tf.Output{imgOutput}, nil)
 	if err != nil {
-		return &odrpc.DetectResponse{
-			Id:    request.Id,
-			Error: fmt.Sprintf("error converting image %v", err),
-		}
+		return nil, status.Errorf(codes.Internal, "error converting image: %v", err)
 	}
 
 	// Get all the input and output operations
@@ -212,10 +196,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 		},
 		nil)
 	if err != nil {
-		return &odrpc.DetectResponse{
-			Id:    request.Id,
-			Error: fmt.Sprintf("error running detection %v", err),
-		}
+		return nil, status.Errorf(codes.Internal, "could not run detection: %v", err)
 	}
 
 	scores := output[1].Value().([][]float32)[0]
@@ -258,7 +239,6 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 			Confidence: scores[i] * 100.0,
 		}
 		// Cleanup the bounds
-		// Cleanup the bounds
 		if detection.Top < 0 {
 			detection.Top = 0
 		}
@@ -281,5 +261,5 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) *od
 	return &odrpc.DetectResponse{
 		Id:         request.Id,
 		Detections: detections,
-	}
+	}, nil
 }

@@ -31,6 +31,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 
+	"github.com/snowzach/doods/conf"
 	"github.com/snowzach/doods/odrpc"
 )
 
@@ -270,7 +271,7 @@ func (s *Server) ListenAndServe() error {
 			s.logger.Fatalw("API Listen error", "error", err, "address", s.server.Addr)
 		}
 	}()
-	s.logger.Infow("API Listening", "address", s.server.Addr, "tls", config.GetBool("server.tls"))
+	s.logger.Infow("API Listening", "address", s.server.Addr, "tls", config.GetBool("server.tls"), "version", conf.GitVersion)
 
 	// Enable profiler
 	if config.GetBool("server.profiler_enabled") && config.GetString("server.profiler_path") != "" {

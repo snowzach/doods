@@ -2,7 +2,6 @@ package detector
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	// We will support these formats
@@ -16,7 +15,10 @@ import (
 	emptypb "github.com/golang/protobuf/ptypes/empty"
 	config "github.com/spf13/viper"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
 
+	"github.com/snowzach/doods/conf"
 	"github.com/snowzach/doods/detector/dconfig"
 	"github.com/snowzach/doods/detector/tensorflow"
 	"github.com/snowzach/doods/detector/tflite"
@@ -26,7 +28,7 @@ import (
 // Detector is the interface to object detectors
 type Detector interface {
 	Config() *odrpc.Detector
-	Detect(ctx context.Context, request *odrpc.DetectRequest) *odrpc.DetectResponse
+	Detect(ctx context.Context, request *odrpc.DetectRequest) (*odrpc.DetectResponse, error)
 	Shutdown()
 }
 
@@ -112,22 +114,28 @@ func (m *Mux) Detect(ctx context.Context, request *odrpc.DetectRequest) (*odrpc.
 
 	detector, ok := m.detectors[request.DetectorName]
 	if !ok {
-		return &odrpc.DetectResponse{
-			Id:    request.Id,
-			Error: fmt.Sprintf("unknown detector %s", request.DetectorName),
-		}, nil
+		return nil, status.Errorf(codes.NotFound, "not found")
 	}
 
-	return detector.Detect(ctx, request), nil
+	return detector.Detect(ctx, request)
 
 }
 
 // Handle a stream of detections
 func (m *Mux) DetectStream(stream odrpc.Odrpc_DetectStreamServer) error {
 
-	ctx := stream.Context()
-	var send sync.Mutex
+	// Handle cancel
+	ctx, cancel := context.WithCancel(stream.Context())
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-conf.Stop.Chan():
+			cancel()
+		}
+	}()
 
+	var send sync.Mutex
+	var ret error
 	for ctx.Err() == nil {
 
 		request, err := stream.Recv()
@@ -135,17 +143,35 @@ func (m *Mux) DetectStream(stream odrpc.Odrpc_DetectStreamServer) error {
 			return nil
 		}
 
-		m.logger.Info("Request")
+		m.logger.Info("Stream Request")
 
-		go func() {
-			response, _ := m.Detect(ctx, request)
+		go func(request *odrpc.DetectRequest) {
+
+			response, err := m.Detect(ctx, request)
+			if err != nil {
+				// A non-fatal error
+				if status.Code(err) == codes.Internal {
+					send.Lock()
+					ret = err
+					cancel()
+					send.Unlock()
+					return
+				} else {
+					response = &odrpc.DetectResponse{
+						Id:    request.Id,
+						Error: err.Error(),
+					}
+				}
+			}
+
 			send.Lock()
 			stream.Send(response)
 			send.Unlock()
-		}()
+
+		}(request)
 
 	}
 
-	return nil
+	return ret
 
 }
