@@ -264,13 +264,14 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 	count := int(countResult[0])
 
 	locations := make([]float32, count*4, count*4)
-	interpreter.GetOutputTensor(0).CopyToBuffer(&locations[0])
-
 	classes := make([]float32, count, count)
-	interpreter.GetOutputTensor(1).CopyToBuffer(&classes[0])
-
 	scores := make([]float32, count, count)
-	interpreter.GetOutputTensor(2).CopyToBuffer(&scores[0])
+
+	if count > 0 {
+		interpreter.GetOutputTensor(0).CopyToBuffer(&locations[0])
+		interpreter.GetOutputTensor(1).CopyToBuffer(&classes[0])
+		interpreter.GetOutputTensor(2).CopyToBuffer(&scores[0])
+	}
 
 	detections := make([]*odrpc.Detection, 0)
 	for i := 0; i < count; i++ {
