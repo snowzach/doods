@@ -4,9 +4,7 @@ FROM registry.prozach.org/doods-builder:$BUILDER_TAG as builder
 # Create the build directory
 WORKDIR /build
 ADD . .
-RUN git status
 RUN make
-RUN git status
 
 FROM debian:buster-slim
 RUN apt-get update && \

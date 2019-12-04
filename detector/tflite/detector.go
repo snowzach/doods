@@ -112,7 +112,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 		interpreter = new(tflInterpreter)
 
 		// Get a device if there is one
-		if d.hwAccel {
+		if d.hwAccel && len(d.devices) > x {
 			interpreter.device = &d.devices[x]
 		}
 
@@ -323,7 +323,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 		d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence,  "location", fmt.Sprintf("%f,%f,%f,%f", detection.Top, detection.Left, detection.Bottom, detection.Right))
 	}
 
-	d.logger.Infow("Detection Complete", "id", request.Id, "duration", time.Since(start), "detections", len(detections), zap.Any("device", interpreter.device))
+	d.logger.Infow("Detection Complete", "id", request.Id, "duration", time.Since(start), "detections", len(detections))
 
 	return &odrpc.DetectResponse{
 		Id:         request.Id,
