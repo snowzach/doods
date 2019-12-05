@@ -258,10 +258,28 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 	}
 	<-complete // Complete no timeout
 
+	// Capture Errors
+	if invokeStatus != OK {
+		d.logger.Errorw("Detector error", "id", request.Id, "status", invokeStatus, zap.Any("device", interpreter.device))
+		return &odrpc.DetectResponse{
+			Id:         request.Id,
+			Error:      "detector error",
+		}, nil
+	}
+
 	// Parse results
 	countResult := make([]float32, 1, 1)
 	interpreter.GetOutputTensor(3).CopyToBuffer(&countResult[0])
 	count := int(countResult[0])
+
+	// Check for a sane count value
+	if count < 0 || count > 100 {
+		d.logger.Errorw("Detector invalid results", "id", request.Id, "count", count, zap.Any("device", interpreter.device))
+		return &odrpc.DetectResponse{
+			Id:         request.Id,
+			Error:      "detector invalid result",
+		}, nil
+	}
 
 	locations := make([]float32, count*4, count*4)
 	classes := make([]float32, count, count)
@@ -323,7 +341,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 		d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence,  "location", fmt.Sprintf("%f,%f,%f,%f", detection.Top, detection.Left, detection.Bottom, detection.Right))
 	}
 
-	d.logger.Infow("Detection Complete", "id", request.Id, "duration", time.Since(start), "detections", len(detections))
+	d.logger.Infow("Detection Complete", "id", request.Id, "duration", time.Since(start), "detections", len(detections), zap.Any("device", interpreter.device))
 
 	return &odrpc.DetectResponse{
 		Id:         request.Id,
