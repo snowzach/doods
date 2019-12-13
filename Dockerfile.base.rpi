@@ -4,7 +4,7 @@ FROM debian:buster as builder
 RUN dpkg --add-architecture armhf && \
     apt-get update && apt-get install -y --no-install-recommends \
     pkg-config zip zlib1g-dev unzip wget bash-completion git curl \
-    build-essential patch g++ python python-future python3 \
+    build-essential patch g++ python python-future python-numpy python-six python3 \
     cmake ca-certificates \
     libc6-dev:armhf libstdc++6:armhf libusb-1.0-0:armhf
 
@@ -20,7 +20,7 @@ RUN wget https://github.com/bazelbuild/bazel/releases/download/0.24.1/bazel_0.24
     rm bazel_0.24.1-linux-x86_64.deb
 
 # Download tensorflow sources
-ARG TF_VERSION="r1.15"
+ARG TF_VERSION="v1.15.0"
 ENV TF_VERSION $TF_VERSION
 RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git --branch $TF_VERSION --single-branch
 
@@ -37,7 +37,7 @@ ENV TF_NEED_GDR=0 TF_NEED_AWS=0 TF_NEED_GCP=0 TF_NEED_CUDA=0 TF_NEED_HDFS=0 TF_N
 RUN cd /opt/tensorflow && yes '' | ./configure
 
 # Tensorflow build flags for rpi
-ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --copt=-march=armv7-a --copt=-mfpu=neon-vfpv4 --copt=-mfloat-abi=hard --copt=-O3 --copt=-std=c++11 --copt=-DS_IREAD=S_IRUSR --copt=-DS_IWRITE=S_IWUSR --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1 --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2 --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 --config=monolithic --copt=-funsafe-math-optimizations --copt=-ftree-vectorize --copt=-fomit-frame-pointer --copt=-DRASPBERRY_PI --config=noaws --config=nogcp --config=nohdfs --config=nokafka --config=noignite --define tensorflow_mkldnn_contraction_kernel=0"
+ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --copt=-march=armv7-a --copt=-mfpu=neon-vfpv4 --copt=-mfloat-abi=hard --copt=-O3 --copt=-std=c++11 --copt=-DS_IREAD=S_IRUSR --copt=-DS_IWRITE=S_IWUSR --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1 --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2 --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 --config=monolithic --copt=-funsafe-math-optimizations --copt=-ftree-vectorize --copt=-fomit-frame-pointer --copt=-DRASPBERRY_PI --config=noaws --config=nohdfs --define tensorflow_mkldnn_contraction_kernel=0"
 ENV BAZEL_EXTRA_FLAGS="--cpu=armeabi --crosstool_top=//tools/local_arm_compiler:toolchain"
 
 # Compile and build tensorflow lite

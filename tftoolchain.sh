@@ -98,21 +98,19 @@ index 000000000..e5d8cc384
 +  ],
 +)
 diff --git a/WORKSPACE b/WORKSPACE
+index babb14b509..bb62b3e0ab 100644
 --- a/WORKSPACE
 +++ b/WORKSPACE
-@@ -18,6 +18,12 @@ load("//tensorflow:workspace.bzl", "tf_repositories")
- # Please add all new TensorFlow dependencies in workspace.bzl.
- tf_repositories()
-
+@@ -145,3 +145,9 @@ http_archive(
+         "https://storage.googleapis.com/download.tensorflow.org/models/speech_commands_v0.01.zip",
+     ],
+ )
++
 +new_local_repository(
 +    name = "local_arm_compiler",
 +    path = "$CROSSTOOL_DIR",
 +    build_file = "BUILD.local_arm_compiler",
 +)
-+
- load("@io_bazel_rules_closure//closure:defs.bzl", "closure_repositories")
-
- closure_repositories()
 diff --git a/tools/local_arm_compiler/BUILD b/tools/local_arm_compiler/BUILD
 new file mode 100644
 index 000000000..ccddd6d50
@@ -1052,7 +1050,7 @@ index 5bafcdc00c..7fb7b4a4ef 100644
 @@ -76,6 +79,13 @@ config_setting(
      },
  )
- 
+
 +config_setting(
 +    name = "armeabi",
 +    values = {

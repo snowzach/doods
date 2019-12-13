@@ -14,7 +14,7 @@ import (
 	"github.com/nfnt/resize"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
-    "google.golang.org/grpc/status"
+	"google.golang.org/grpc/status"
 
 	"github.com/snowzach/doods/conf"
 	"github.com/snowzach/doods/detector/dconfig"
@@ -22,14 +22,20 @@ import (
 	"github.com/snowzach/doods/odrpc"
 )
 
+const (
+	OutputFormat_4_TFLite_Detection_PostProcess = iota
+	OutputFormat_1_scores
+)
+
 type detector struct {
 	config odrpc.Detector
 	logger *zap.SugaredLogger
 
-	labels    map[int]string
-	model     *Model
-	inputType TensorType
-	pool      chan *tflInterpreter
+	labels       map[int]string
+	model        *Model
+	inputType    TensorType
+	outputFormat int
+	pool         chan *tflInterpreter
 
 	devices    []edgetpu.Device
 	numThreads int
@@ -124,14 +130,50 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 		d.pool <- interpreter
 	}
 
-	// Get the settings from the last one
+	// Get the settings from the input tensor
+	if inputCount := interpreter.GetInputTensorCount(); inputCount != 1 {
+		return nil, fmt.Errorf("unsupported input tensor count: %d", inputCount)
+	}
 	input := interpreter.GetInputTensor(0)
+	if input.Name() != "normalized_input_image_tensor" && input.Name() != "image" {
+		return nil, fmt.Errorf("unsupported input tensor name: %s", input.Name())
+	}
 	d.config.Height = int32(input.Dim(1))
 	d.config.Width = int32(input.Dim(2))
 	d.config.Channels = int32(input.Dim(3))
 	d.inputType = input.Type()
 	if d.inputType != UInt8 {
 		return nil, fmt.Errorf("unsupported tensor input type: %s", d.inputType)
+	}
+
+	// Dump output tensor information
+	count := interpreter.GetOutputTensorCount()
+	for x := 0; x < count; x++ {
+		tensor := interpreter.GetOutputTensor(x)
+		numDims := tensor.NumDims()
+		d.logger.Debugw("Tensor Output", "n", x, "name", tensor.Name(), "type", tensor.Type(), "num_dims", numDims, "byte_size", tensor.ByteSize())
+		if numDims > 1 {
+			for y := 0; y < numDims; y++ {
+				d.logger.Debugw("Tensor Dim", "n", x, "dim", y, "dim_size", tensor.Dim(x))
+			}
+		}
+	}
+
+	if count == 4 && interpreter.GetOutputTensor(0).Name() == "TFLite_Detection_PostProcess" {
+		d.outputFormat = OutputFormat_4_TFLite_Detection_PostProcess
+	} else if count == 1 && interpreter.GetOutputTensor(0).Name() == "scores" {
+		d.outputFormat = OutputFormat_1_scores
+		// Check the output types
+		tensor := interpreter.GetOutputTensor(0)
+		if tensor.Type() != UInt8 {
+			return nil, fmt.Errorf("unsupported tensor output type: %s", tensor.Type())
+		}
+		// Ensure the length of the labels match the detection size
+		for x := int(tensor.ByteSize()) - len(d.labels); x > 0; x-- {
+			d.labels[x] = "unknown"
+		}
+	} else {
+		return nil, fmt.Errorf("unsupported output tensor count: %d", count)
 	}
 
 	return d, nil
@@ -262,83 +304,128 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 	if invokeStatus != OK {
 		d.logger.Errorw("Detector error", "id", request.Id, "status", invokeStatus, zap.Any("device", interpreter.device))
 		return &odrpc.DetectResponse{
-			Id:         request.Id,
-			Error:      "detector error",
+			Id:    request.Id,
+			Error: "detector error",
 		}, nil
-	}
-
-	// Parse results
-	countResult := make([]float32, 1, 1)
-	interpreter.GetOutputTensor(3).CopyToBuffer(&countResult[0])
-	count := int(countResult[0])
-
-	// Check for a sane count value
-	if count < 0 || count > 100 {
-		d.logger.Errorw("Detector invalid results", "id", request.Id, "count", count, zap.Any("device", interpreter.device))
-		return &odrpc.DetectResponse{
-			Id:         request.Id,
-			Error:      "detector invalid result",
-		}, nil
-	}
-
-	locations := make([]float32, count*4, count*4)
-	classes := make([]float32, count, count)
-	scores := make([]float32, count, count)
-
-	if count > 0 {
-		interpreter.GetOutputTensor(0).CopyToBuffer(&locations[0])
-		interpreter.GetOutputTensor(1).CopyToBuffer(&classes[0])
-		interpreter.GetOutputTensor(2).CopyToBuffer(&scores[0])
 	}
 
 	detections := make([]*odrpc.Detection, 0)
-	for i := 0; i < count; i++ {
-		// Get the label
-		label, ok := d.labels[int(classes[i])]
-		if !ok {
-			d.logger.Warnw("Missing label", "index", classes[i])
+
+	switch d.outputFormat {
+	case OutputFormat_4_TFLite_Detection_PostProcess:
+		// Parse results
+		var countResult float32
+		interpreter.GetOutputTensor(3).CopyToBuffer(&countResult)
+		count := int(countResult)
+
+		// Check for a sane count value
+		if count < 0 || count > 100 {
+			d.logger.Errorw("Detector invalid results", "id", request.Id, "count", count, zap.Any("device", interpreter.device))
+			return &odrpc.DetectResponse{
+				Id:    request.Id,
+				Error: "detector invalid result",
+			}, nil
 		}
 
-		// We have this class listed explicitly
-		if score, ok := request.Detect[label]; ok {
-			// Does it meet the score?
-			if scores[i]*100.0 < score {
+		locations := make([]float32, count*4, count*4)
+		classes := make([]float32, count, count)
+		scores := make([]float32, count, count)
+
+		if count > 0 {
+			interpreter.GetOutputTensor(0).CopyToBuffer(&locations[0])
+			interpreter.GetOutputTensor(1).CopyToBuffer(&classes[0])
+			interpreter.GetOutputTensor(2).CopyToBuffer(&scores[0])
+		}
+
+		for i := 0; i < count; i++ {
+			// Get the label
+			label, ok := d.labels[int(classes[i])]
+			if !ok {
+				d.logger.Warnw("Missing label", "index", classes[i])
+			}
+
+			// We have this class listed explicitly
+			if score, ok := request.Detect[label]; ok {
+				// Does it meet the score?
+				if scores[i]*100.0 < score {
+					continue
+				}
+				// We have a wildcard score
+			} else if score, ok := request.Detect["*"]; ok {
+				if scores[i]*100.0 < score {
+					continue
+				}
+			} else if len(request.Detect) != 0 {
+				// It's not listed
 				continue
 			}
-			// We have a wildcard score
-		} else if score, ok := request.Detect["*"]; ok {
-			if scores[i]*100.0 < score {
+
+			detection := &odrpc.Detection{
+				Top:        locations[(i * 4)],
+				Left:       locations[(i*4)+1],
+				Bottom:     locations[(i*4)+2],
+				Right:      locations[(i*4)+3],
+				Label:      label,
+				Confidence: scores[i] * 100.0,
+			}
+			// Cleanup the bounds
+			if detection.Top < 0 {
+				detection.Top = 0
+			}
+			if detection.Left < 0 {
+				detection.Left = 0
+			}
+			if detection.Bottom > 1 {
+				detection.Bottom = 1
+			}
+			if detection.Right > 1 {
+				detection.Right = 1
+			}
+			detections = append(detections, detection)
+
+			d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence, "location", fmt.Sprintf("%f,%f,%f,%f", detection.Top, detection.Left, detection.Bottom, detection.Right))
+		}
+
+	case OutputFormat_1_scores:
+		scores := make([]uint8, len(d.labels), len(d.labels))
+		interpreter.GetOutputTensor(0).CopyToBuffer(scores)
+
+		for i := range scores {
+			// Get the label
+			label, ok := d.labels[i]
+			if !ok {
+				d.logger.Warnw("Missing label", "index", i)
+			}
+
+			labelScore := 100.0 * (float32(scores[i]) / 255.0)
+
+			// We have this class listed explicitly
+			if matchScore, ok := request.Detect[label]; ok {
+				// Does it meet the score?
+				if labelScore < matchScore {
+					continue
+				}
+				// We have a wildcard score
+			} else if matchScore, ok := request.Detect["*"]; ok {
+				if labelScore < matchScore {
+					continue
+				}
+			} else if len(request.Detect) != 0 {
+				// It's not listed
 				continue
 			}
-		} else if len(request.Detect) != 0 {
-			// It's not listed
-			continue
-		}
 
-		detection := &odrpc.Detection{
-			Top:        locations[(i * 4)],
-			Left:       locations[(i*4)+1],
-			Bottom:     locations[(i*4)+2],
-			Right:      locations[(i*4)+3],
-			Label:      label,
-			Confidence: scores[i] * 100.0,
+			detection := &odrpc.Detection{
+				Top:        0.0,
+				Left:       0.0,
+				Bottom:     1.0,
+				Right:      1.0,
+				Label:      label,
+				Confidence: labelScore,
+			}
+			detections = append(detections, detection)
+			d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence, "location", fmt.Sprintf("%f,%f,%f,%f", detection.Top, detection.Left, detection.Bottom, detection.Right))
 		}
-		// Cleanup the bounds
-		if detection.Top < 0 {
-			detection.Top = 0
-		}
-		if detection.Left < 0 {
-			detection.Left = 0
-		}
-		if detection.Bottom > 1 {
-			detection.Bottom = 1
-		}
-		if detection.Right > 1 {
-			detection.Right = 1
-		}
-		detections = append(detections, detection)
-
-		d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence,  "location", fmt.Sprintf("%f,%f,%f,%f", detection.Top, detection.Left, detection.Bottom, detection.Right))
 	}
 
 	d.logger.Infow("Detection Complete", "id", request.Id, "duration", time.Since(start), "detections", len(detections), zap.Any("device", interpreter.device))

@@ -161,7 +161,7 @@ Example: `docker run -it --device /dev/bus/usb -p 8080:8080 snowzach/doods:lates
 ## Misc
 Special thanks to https://github.com/mattn/go-tflite as I would have never been able to figure out all the CGO stuff. I really wanted to write this in Go but I'm not good enough at C++/CGO to do it. Most of the tflite code is taken from that repo and customized for this tool.
 
-And special thanks to @marianopeck and @PINTO0309 for help in building tensorflow and binaries for bazel on the arm. 
+And special thanks to @lhelontra, @marianopeck and @PINTO0309 for help in building tensorflow and binaries for bazel on the arm. 
 
 ## Docker Images
 There are several published Docker images that you can use

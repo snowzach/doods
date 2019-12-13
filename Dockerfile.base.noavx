@@ -3,7 +3,7 @@ FROM debian:buster as builder
 # Install reqs with cross compile support
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config zip zlib1g-dev unzip wget bash-completion git curl \
-    build-essential patch g++ python python-future python3 \
+    build-essential patch g++ python python-future python-numpy python-six python3 \
     cmake ca-certificates \
     libc6-dev libstdc++6 libusb-1.0-0
 
@@ -14,12 +14,12 @@ RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.9.1/pr
     rm protoc-3.9.1-linux-x86_64.zip
 
 # Install bazel
-RUN wget https://github.com/bazelbuild/bazel/releases/download/0.24.1/bazel_0.24.1-linux-x86_64.deb && \
-    dpkg -i bazel_0.24.1-linux-x86_64.deb && \
-    rm bazel_0.24.1-linux-x86_64.deb
+RUN wget https://github.com/bazelbuild/bazel/releases/download/0.27.1/bazel_0.27.1-linux-x86_64.deb && \
+    dpkg -i bazel_0.27.1-linux-x86_64.deb && \
+    rm bazel_0.27.1-linux-x86_64.deb
 
 # Download tensorflow sources
-ARG TF_VERSION="r1.15"
+ARG TF_VERSION="v2.1.0-rc1"
 ENV TF_VERSION $TF_VERSION
 RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git --branch $TF_VERSION --single-branch
 
@@ -28,7 +28,7 @@ ENV TF_NEED_GDR=0 TF_NEED_AWS=0 TF_NEED_GCP=0 TF_NEED_CUDA=0 TF_NEED_HDFS=0 TF_N
 RUN cd /opt/tensorflow && yes '' | ./configure
 
 # Tensorflow build flags for rpi
-ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --config monolithic --copt=-O3 --copt=-fomit-frame-pointer --config=noaws --config=nogcp --config=nohdfs --config=nokafka --config=noignite"
+ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --config monolithic --copt=-O3 --copt=-fomit-frame-pointer --config=noaws --config=nohdfs"
 ENV BAZEL_EXTRA_FLAGS=""
 
 # Compile and build tensorflow lite
