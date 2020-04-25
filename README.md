@@ -171,6 +171,12 @@ There are several published Docker images that you can use
 * aarch64 - Arm 64 bit image
 * rpi - Arm 32 bit/arm7 image optimized for the Raspberry Pi
 * amd64 - 64 bit x86 image with all the fancy cpu features like avx and sse4.2
+* cuda - Support for NVidia GPUs
+
+## CUDA Support
+There is now NVidia GPU support with an docker image tagged cuda, to run:
+`docker run -it --gpus all -p 8080:8080 snowzach/doods:cuda`
+For whatever reason, it can take a good 60-80 seconds before the model finishes loading.
 
 ## Compiling
 You can compile it yourself using the native config which should optimize for whatever you have installed. 
