@@ -56,7 +56,7 @@ docker-base:
 	docker build -t docker.io/snowzach/doods-base:${CONFIG} -f Dockerfile.base.${CONFIG} .
 
 docker-builder:
-	docker build -t docker.io/snowzach/doods-builder:${CONFIG} -f Dockerfile.builder.${CONFIG} .
+	docker build -t docker.io/snowzach/doods-builder:${CONFIG} --build-arg BUILDER_TAG=${CONFIG} -f Dockerfile.builder .
 
 docker-image:
 	docker build -t docker.io/snowzach/doods:${CONFIG} --build-arg BUILDER_TAG=${CONFIG} -f Dockerfile .

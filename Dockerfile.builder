@@ -1,5 +1,5 @@
 ARG BUILDER_TAG="latest"
-FROM registry.prozach.org/doods-base:$BUILDER_TAG as base
+FROM snowzach/doods-base:$BUILDER_TAG as base
 
 # Install Go
 ENV GO_VERSION "1.13.3"

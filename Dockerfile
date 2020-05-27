@@ -1,5 +1,5 @@
 ARG BUILDER_TAG="latest"
-FROM registry.prozach.org/doods-builder:$BUILDER_TAG as builder
+FROM snowzach/doods-builder:$BUILDER_TAG as builder
 
 # Create the build directory
 WORKDIR /build
