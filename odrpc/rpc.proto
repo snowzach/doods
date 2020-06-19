@@ -65,6 +65,18 @@ message DetectRequest {
     bytes data = 3 [(gogoproto.casttype) = "Raw",(gogoproto.jsontag) = "data"];
     // What to detect
     map<string, float> detect = 4;
+    // Sub regions for detection
+    repeated DetectRegion regions = 5;
+}
+
+message DetectRegion {
+    // Coordinates
+    float top = 1 [(gogoproto.jsontag) = "top"];
+    float left = 2 [(gogoproto.jsontag) = "left"]; 
+    float bottom = 3 [(gogoproto.jsontag) = "bottom"];
+    float right = 4 [(gogoproto.jsontag) = "right"];
+    // What to detect
+    map<string, float> detect = 5;
 }
 
 // Area for detection

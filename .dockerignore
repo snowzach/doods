@@ -12,4 +12,5 @@ doods
 private
 models/**
 Dockerfile.*.*
-
+Dockerfile.*
+README.md

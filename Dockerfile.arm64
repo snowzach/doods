@@ -1,34 +1,40 @@
-FROM debian:buster as builder
+FROM debian:buster as base
 
 # Install reqs with cross compile support
-RUN dpkg --add-architecture armhf && \
+RUN dpkg --add-architecture arm64 && \
     apt-get update && apt-get install -y --no-install-recommends \
     pkg-config zip zlib1g-dev unzip wget bash-completion git curl \
     build-essential patch g++ python python-future python3 \
     cmake ca-certificates \
-    libc6-dev:armhf libstdc++6:armhf libusb-1.0-0:armhf
+    libc6-dev:arm64 libstdc++6:arm64 libusb-1.0-0:arm64
 
 # Install protoc
-RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.9.1/protoc-3.9.1-linux-x86_64.zip && \
-    unzip protoc-3.9.1-linux-x86_64.zip -d /usr/local && \
+RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.12.3/protoc-3.12.3-linux-x86_64.zip && \
+    unzip protoc-3.12.3-linux-x86_64.zip -d /usr/local && \
     rm /usr/local/readme.txt && \
-    rm protoc-3.9.1-linux-x86_64.zip
+    rm protoc-3.12.3-linux-x86_64.zip
+
+# Version Configuration
+ARG BAZEL_VERSION="0.26.1"
+ARG TF_VERSION="v1.15.3"
+ARG OPENCV_VERSION="4.3.0"
+ARG GO_VERSION="1.14.3"
 
 # Install bazel
-RUN wget https://github.com/bazelbuild/bazel/releases/download/0.24.1/bazel_0.24.1-linux-x86_64.deb && \
-    dpkg -i bazel_0.24.1-linux-x86_64.deb && \
-    rm bazel_0.24.1-linux-x86_64.deb
+ENV BAZEL_VERSION $BAZEL_VERSION
+RUN wget https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel_${BAZEL_VERSION}-linux-x86_64.deb && \
+    dpkg -i bazel_${BAZEL_VERSION}-linux-x86_64.deb && \
+    rm bazel_${BAZEL_VERSION}-linux-x86_64.deb
 
 # Download tensorflow sources
-ARG TF_VERSION="r1.14"
 ENV TF_VERSION $TF_VERSION
 RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git --branch $TF_VERSION --single-branch
 
 # Download and configure the toolchain and patch tensorflow as needed
 ENV CROSSTOOL_COMPILER="yes"
-ENV CROSSTOOL_URL="https://releases.linaro.org/components/toolchain/binaries/5.5-2017.10/arm-linux-gnueabihf/gcc-linaro-5.5.0-2017.10-x86_64_arm-linux-gnueabihf.tar.xz"
-ENV CROSSTOOL_DIR="gcc-linaro-5.5.0-2017.10-x86_64_arm-linux-gnueabihf"
-ENV CROSSTOOL_NAME="arm-linux-gnueabihf"
+ENV CROSSTOOL_URL="https://releases.linaro.org/components/toolchain/binaries/5.5-2017.10/aarch64-linux-gnu/gcc-linaro-5.5.0-2017.10-x86_64_aarch64-linux-gnu.tar.xz"
+ENV CROSSTOOL_DIR="gcc-linaro-5.5.0-2017.10-x86_64_aarch64-linux-gnu"
+ENV CROSSTOOL_NAME="aarch64-linux-gnu"
 COPY tftoolchain.sh /opt/tftoolchain.sh
 RUN cd /opt/tensorflow && /opt/tftoolchain.sh
 
@@ -36,9 +42,9 @@ RUN cd /opt/tensorflow && /opt/tftoolchain.sh
 ENV TF_NEED_GDR=0 TF_NEED_AWS=0 TF_NEED_GCP=0 TF_NEED_CUDA=0 TF_NEED_HDFS=0 TF_NEED_OPENCL_SYCL=0 TF_NEED_VERBS=0 TF_NEED_MPI=0 TF_NEED_MKL=0 TF_NEED_JEMALLOC=1 TF_ENABLE_XLA=0 TF_NEED_S3=0 TF_NEED_KAFKA=0 TF_NEED_IGNITE=0 TF_NEED_ROCM=0
 RUN cd /opt/tensorflow && yes '' | ./configure
 
-# Tensorflow build flags for rpi
-ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --copt=-march=armv7-a --copt=-mfpu=neon-vfpv4 --copt=-mfloat-abi=hard --copt=-O3 --copt=-std=c++11 --copt=-DS_IREAD=S_IRUSR --copt=-DS_IWRITE=S_IWUSR --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1 --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2 --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 --config=monolithic --copt=-funsafe-math-optimizations --copt=-ftree-vectorize --copt=-fomit-frame-pointer --copt=-DRASPBERRY_PI --config=noaws --config=nogcp --config=nohdfs --config=nokafka --config=noignite --define tensorflow_mkldnn_contraction_kernel=0"
-ENV BAZEL_EXTRA_FLAGS="--cpu=armeabi --crosstool_top=//tools/local_arm_compiler:toolchain"
+# Tensorflow build flags for aarch64 (odroid c2 used for example)
+ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --copt=-march=armv8-a+crc+simd --copt=-mtune=cortex-a53 --copt=-O3 --copt=-flax-vector-conversions --copt=-std=c++11 --copt=-DS_IREAD=S_IRUSR --copt=-DS_IWRITE=S_IWUSR --config=monolithic --copt=-funsafe-math-optimizations --copt=-ftree-vectorize --copt=-fomit-frame-pointer --copt=-DRASPBERRY_PI --noincompatible_strict_action_env --config=v2 --config=noaws --config=nohdfs --define tensorflow_mkldnn_contraction_kernel=0 --define=raspberry_pi_with_neon=true"
+ENV BAZEL_EXTRA_FLAGS="--cpu=armeabi --crosstool_top=@local_config_arm_compiler//:toolchain"
 
 # Compile and build tensorflow lite
 RUN cd /opt/tensorflow && \
@@ -61,36 +67,35 @@ RUN cd /opt/tensorflow && \
 # Download and configure the build environment for gcc 6 which is needed to compile everything else
 RUN mkdir -p /tmp/sysroot/lib && mkdir -p /tmp/sysroot/usr/lib && \
     cd /tmp && \
-    wget --no-check-certificate https://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/arm-linux-gnueabihf/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf.tar.xz -O toolchain.tar.xz && \
+    wget --no-check-certificate https://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/aarch64-linux-gnu/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu.tar.xz -O toolchain.tar.xz && \
     tar xf toolchain.tar.xz -C /opt/toolchain/ && \
     rm toolchain.tar.xz && \
-    cp -r /opt/toolchain/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf/arm-linux-gnueabihf/libc/* /tmp/sysroot/
-RUN mkdir -p /tmp/debs && cd /tmp/debs && apt-get download libc6:armhf libc6-dev:armhf && \
+    cp -r /opt/toolchain/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc/* /tmp/sysroot/
+RUN mkdir -p /tmp/debs && cd /tmp/debs && apt-get update && apt-get download libc6:arm64 libc6-dev:arm64 && \
     ar x libc6_*.deb && tar xvf data.tar.xz && \
     ar x libc6-dev*.deb && tar xvf data.tar.xz && \
     cp -R usr /tmp/sysroot && cp -R lib /tmp/sysroot && rm -Rf /tmp/debs && \
     mkdir -p /tmp/debs && cd /tmp/debs && \
-    apt-get download libusb-1.0-0:armhf libudev1:armhf zlib1g-dev:armhf zlib1g:armhf && \
+    apt-get download libusb-1.0-0:arm64 libudev1:arm64 zlib1g-dev:arm64 zlib1g:arm64 && \
     ar x libusb-1.0*.deb && tar xvf data.tar.xz && \
     ar x libudev1*.deb && tar xvf data.tar.xz && \
     ar x zlib1g_*.deb && tar xvf data.tar.xz && \
-    ar x zlib1g-dev*.deb && tar xvf data.tar.xz && rm usr/lib/arm-linux-gnueabihf/libz.so && \
-    cp -r lib/arm-linux-gnueabihf/* /tmp/sysroot/lib && \
-    cp -r usr/lib/arm-linux-gnueabihf/* /tmp/sysroot/usr/lib && \
+    ar x zlib1g-dev*.deb && tar xvf data.tar.xz && rm usr/lib/aarch64-linux-gnu/libz.so && \
+    cp -r lib/aarch64-linux-gnu/* /tmp/sysroot/lib && \
+    cp -r usr/lib/aarch64-linux-gnu/* /tmp/sysroot/usr/lib && \
     cp -r usr/include/* /tmp/sysroot/usr/include && \
     ln -rs /tmp/sysroot/lib/libusb-1.0.so.0.1.0 /tmp/sysroot/lib/libusb-1.0.so && \
     ln -rs /tmp/sysroot/lib/libudev.so.1.6.13 /tmp/sysroot/lib/libudev.so && \
     ln -rs /tmp/sysroot/lib/libz.so.1.2.11 /tmp/sysroot/lib/libz.so && \
     ln -s /usr/local /tmp/sysroot/usr/local && \
     cd /tmp && rm -Rf /tmp/debs
-ENV CC="/opt/toolchain/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc"
-ENV CXX="/opt/toolchain/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-g++"
+ENV CC="/opt/toolchain/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc"
+ENV CXX="/opt/toolchain/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-g++"
 ENV LDFLAGS="-v -L /lib -L /usr/lib --sysroot /tmp/sysroot"
-ENV CFLAGS="-L /lib -L /usr/lib --sysroot /tmp/sysroot"
-ENV CXXFLAGS="-L /lib -L /usr/lib --sysroot /tmp/sysroot"
+ENV CFLAGS="-L /lib -L /usr/lib -D PNG_ARM_NEON_OPT=0 --sysroot /tmp/sysroot"
+ENV CXXFLAGS="-L /lib -L /usr/lib -D PNG_ARM_NEON_OPT=0 --sysroot /tmp/sysroot"
 
 # Install GOCV
-ARG OPENCV_VERSION="4.0.1"
 ENV OPENCV_VERSION $OPENCV_VERSION
 RUN cd /tmp && \
     curl -Lo opencv.zip https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip && \
@@ -106,6 +111,7 @@ RUN cd /tmp && \
     -D WITH_JASPER=OFF \
     -D WITH_QT=OFF \
     -D WITH_GTK=OFF \
+    -D WITH_IPP=OFF \
     -D BUILD_DOCS=OFF \
     -D BUILD_EXAMPLES=OFF \
     -D BUILD_TESTS=OFF \
@@ -121,33 +127,38 @@ RUN cd /tmp && \
 
 # Download the edgetpu library and install it
 RUN cd /tmp && git clone https://github.com/google-coral/edgetpu.git && \
-    install edgetpu/libedgetpu/direct/armv7a/libedgetpu.so.1.0 /tmp/sysroot/usr/lib/libedgetpu.so.1.0 && \
-    ln -rs /tmp/sysroot/usr/lib/libedgetpu.so.1.0 /tmp/sysroot/usr/lib/libedgetpu.so.1 && \
-    ln -rs /tmp/sysroot/usr/lib/libedgetpu.so.1.0 /tmp/sysroot/usr/lib/libedgetpu.so && \
-    mkdir -p /tmp/sysroot/usr/include/libedgetpu && \
-    install edgetpu/libedgetpu/edgetpu.h /tmp/sysroot/usr/include/libedgetpu/edgetpu.h && \
-    install edgetpu/libedgetpu/edgetpu_c.h /tmp/sysroot/usr/include/libedgetpu/edgetpu_c.h && \
+    install edgetpu/libedgetpu/direct/aarch64/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so.1.0 && \
+    ln -rs /usr/local/lib/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so.1 && \
+    ln -rs /usr/local/lib/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so && \
+    mkdir -p /usr/local/include/libedgetpu && \
+    install edgetpu/libedgetpu/edgetpu.h /usr/local/include/libedgetpu/edgetpu.h && \
+    install edgetpu/libedgetpu/edgetpu_c.h /usr/local/include/libedgetpu/edgetpu_c.h && \
     rm -Rf edgetpu
 
 # Install Go
-ARG GO_ARCH="armv6l"
-ARG GO_VERSION="1.13.3"
 ENV GO_VERSION $GO_VERSION
+ARG GO_ARCH="amd64"
 ENV GOOS=linux
-ENV GOARCH=arm
-ENV CGO_ENABLED=1
-ENV CGO_LDFLAGS="-v -L /lib -L /usr/lib -L /usr/local/lib --sysroot /tmp/sysroot -ledgetpu"
-ENV CGO_CFLAGS="-L /lib -L /usr/lib -L /usr/local/lib --sysroot /tmp/sysroot"
-ENV CGO_CXXFLAGS="-L /lib -L /usr/lib -L /usr/local/lib --sysroot /tmp/sysroot"
 RUN curl -Lo go${GO_VERSION}.linux-$GO_ARCH.tar.gz https://dl.google.com/go/go${GO_VERSION}.linux-$GO_ARCH.tar.gz && \
     tar -C /usr/local -xzf go${GO_VERSION}.linux-$GO_ARCH.tar.gz && \
     rm go${GO_VERSION}.linux-$GO_ARCH.tar.gz
 ENV PATH /usr/local/go/bin:/go/bin:${PATH}
 ENV GOPATH /go
 
-# Compile doods
+# Start compile
 WORKDIR /build
 ADD . .
+
+# Install/Compile tools
+ENV CGO_ENABLED=0
+RUN make tools
+
+# Compile DOODS
+ENV GOARCH=arm64
+ENV CGO_ENABLED=1
+ENV CGO_LDFLAGS="-v -L /lib -L /usr/lib -L /usr/local/lib --sysroot /tmp/sysroot -ledgetpu"
+ENV CGO_CFLAGS="-L /lib -L /usr/lib -L /usr/local/lib -I /opt/tensorflow --sysroot /tmp/sysroot"
+ENV CGO_CXXFLAGS="-L /lib -L /usr/lib -L /usr/local/lib -I /opt/tensorflow --sysroot /tmp/sysroot"
 RUN make
 
 # Start creating the new root directory
@@ -158,17 +169,23 @@ RUN mkdir -p /tmp/newroot/lib && mkdir -p /tmp/newroot/usr/lib && \
 
 # Setup doods and sample config with models
 RUN mkdir -p /tmp/newroot/opt/doods && \
-    cp /build/doods /tmp/newroot/opt/doods/doods && \
-    cp /build/config.yaml /tmp/newroot/opt/doods/config.yaml && \
-    cd /tmp/newroot/opt/doods && \
-    mkdir models && \
-    wget https://storage.googleapis.com/download.tensorflow.org/models/tflite/coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip && unzip coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip && rm coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip && mv detect.tflite models/coco_ssd_mobilenet_v1_1.0_quant.tflite && rm labelmap.txt && \
-    wget https://dl.google.com/coral/canned_models/coco_labels.txt && mv coco_labels.txt models/coco_labels0.txt
+    cp /build/doods /tmp/newroot/opt/doods/doods
+WORKDIR /tmp/newroot/opt/doods
 
-FROM arm32v7/debian:buster-slim
+# Download sample models
+RUN mkdir models
+RUN wget https://storage.googleapis.com/download.tensorflow.org/models/tflite/coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip && unzip coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip && rm coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip && mv detect.tflite models/coco_ssd_mobilenet_v1_1.0_quant.tflite && rm labelmap.txt
+RUN wget https://dl.google.com/coral/canned_models/coco_labels.txt && mv coco_labels.txt models/coco_labels0.txt
+RUN wget http://download.tensorflow.org/models/object_detection/faster_rcnn_inception_v2_coco_2018_01_28.tar.gz && tar -zxvf faster_rcnn_inception_v2_coco_2018_01_28.tar.gz faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --strip=1 && mv frozen_inference_graph.pb models/faster_rcnn_inception_v2_coco_2018_01_28.pb && rm faster_rcnn_inception_v2_coco_2018_01_28.tar.gz
+RUN wget https://raw.githubusercontent.com/amikelive/coco-labels/master/coco-labels-2014_2017.txt && mv coco-labels-2014_2017.txt models/coco_labels1.txt
+ADD config.arm.yaml config.yaml
+
+FROM arm64v8/debian:buster-slim
 # Copy the pre-built root filesystem 
-COPY --from=builder /tmp/newroot/. /.
-COPY --from=builder /usr/local/. /usr/local/.
+COPY --from=base /tmp/newroot/. /.
+COPY --from=base /usr/local/. /usr/local/.
+# Needed because we can't run ldconfig
+ENV LD_LIBRARY_PATH=/usr/local/lib
 
 WORKDIR /opt/doods
 CMD ["/opt/doods/doods", "-c", "/opt/doods/config.yaml", "api"]

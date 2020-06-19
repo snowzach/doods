@@ -13,6 +13,6 @@ doods:
       modelFile: models/faster_rcnn_inception_v2_coco_2018_01_28.pb
       labelFile: models/coco_labels1.txt
       numThreads: 4
-      numConcurrent: 4
+      numConcurrent: 1
       hwAccel: false
       timeout: 2m

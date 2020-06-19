@@ -50,13 +50,34 @@ deps:
 	# Fetching dependancies...
 	go get -d -v # Adding -u here will break CI
 
-docker: docker-base docker-builder docker-image
+docker:
+	docker build -t docker.io/snowzach/doods:local -f Dockerfile .
 
-docker-base:
-	docker build -t docker.io/snowzach/doods-base:${CONFIG} -f Dockerfile.base.${CONFIG} .
+docker-images: docker-noavx docker-amd64 docker-arm32 docker-arm64
+	docker manifest push --purge snowzach/doods:latest
+	docker manifest create snowzach/doods:latest snowzach/doods:noavx snowzach/doods:arm32 snowzach/doods:arm64
+	docker manifest push snowzach/doods:latest
 
+.PHONY: docker-noavx
+docker-noavx:
+	docker build -t docker.io/snowzach/doods:noavx -f Dockerfile.noavx .
+	docker push docker.io/snowzach/doods:noavx
+
+.PHONY: docker-amd64
+docker-amd64:
+	docker build -t docker.io/snowzach/doods:amd64 -f Dockerfile.amd64 .
+	docker push docker.io/snowzach/doods:amd64
+
+.PHONY: docker-arm32
+docker-arm32:
+	docker build -t docker.io/snowzach/doods:arm32 -f Dockerfile.arm32 .
+	docker push docker.io/snowzach/doods:arm32
+
+.PHONY: docker-arm64
+docker-arm64:
+	docker build -t docker.io/snowzach/doods:arm64 -f Dockerfile.arm64 .
+	docker push docker.io/snowzach/doods:arm64
+
+.PHONY: docker-builder
 docker-builder:
-	docker build -t docker.io/snowzach/doods-builder:${CONFIG} -f Dockerfile.builder.${CONFIG} .
-
-docker-image:
-	docker build -t docker.io/snowzach/doods:${CONFIG} --build-arg BUILDER_TAG=${CONFIG} -f Dockerfile .
+	docker build -t docker.io/snowzach/doods:builder -f Dockerfile.builder .
