@@ -8,10 +8,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libc6-dev libstdc++6 libusb-1.0-0
 
 # Install protoc
-RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.9.1/protoc-3.9.1-linux-x86_64.zip && \
-    unzip protoc-3.9.1-linux-x86_64.zip -d /usr/local && \
+RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.12.3/protoc-3.12.3-linux-x86_64.zip && \
+    unzip protoc-3.12.3-linux-x86_64.zip -d /usr/local && \
     rm /usr/local/readme.txt && \
-    rm protoc-3.9.1-linux-x86_64.zip
+    rm protoc-3.12.3-linux-x86_64.zip
 
 # Version Configuration
 ARG BAZEL_VERSION="0.26.1"

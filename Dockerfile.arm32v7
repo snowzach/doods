@@ -1,4 +1,4 @@
-FROM debian:buster as builder
+FROM debian:buster as base
 
 # Install reqs with cross compile support
 RUN dpkg --add-architecture armhf && \
@@ -9,18 +9,24 @@ RUN dpkg --add-architecture armhf && \
     libc6-dev:armhf libstdc++6:armhf libusb-1.0-0:armhf
 
 # Install protoc
-RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.9.1/protoc-3.9.1-linux-x86_64.zip && \
-    unzip protoc-3.9.1-linux-x86_64.zip -d /usr/local && \
+RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.12.3/protoc-3.12.3-linux-x86_64.zip && \
+    unzip protoc-3.12.3-linux-x86_64.zip -d /usr/local && \
     rm /usr/local/readme.txt && \
-    rm protoc-3.9.1-linux-x86_64.zip
+    rm protoc-3.12.3-linux-x86_64.zip
+
+# Version Configuration
+ARG BAZEL_VERSION="0.26.1"
+ARG TF_VERSION="v1.15.3"
+ARG OPENCV_VERSION="4.3.0"
+ARG GO_VERSION="1.14.3"
 
 # Install bazel
-RUN wget https://github.com/bazelbuild/bazel/releases/download/0.24.1/bazel_0.24.1-linux-x86_64.deb && \
-    dpkg -i bazel_0.24.1-linux-x86_64.deb && \
-    rm bazel_0.24.1-linux-x86_64.deb
+ENV BAZEL_VERSION $BAZEL_VERSION
+RUN wget https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel_${BAZEL_VERSION}-linux-x86_64.deb && \
+    dpkg -i bazel_${BAZEL_VERSION}-linux-x86_64.deb && \
+    rm bazel_${BAZEL_VERSION}-linux-x86_64.deb
 
 # Download tensorflow sources
-ARG TF_VERSION="r1.14"
 ENV TF_VERSION $TF_VERSION
 RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git --branch $TF_VERSION --single-branch
 
@@ -30,15 +36,15 @@ ENV CROSSTOOL_URL="https://releases.linaro.org/components/toolchain/binaries/5.5
 ENV CROSSTOOL_DIR="gcc-linaro-5.5.0-2017.10-x86_64_arm-linux-gnueabihf"
 ENV CROSSTOOL_NAME="arm-linux-gnueabihf"
 COPY tftoolchain.sh /opt/tftoolchain.sh
-RUN cd /opt/tensorflow && /opt/tftoolchain.sh
+RUN cd /opt/tensorflow && /opt/tftoolchain2.sh
 
 # Configure tensorflow
 ENV TF_NEED_GDR=0 TF_NEED_AWS=0 TF_NEED_GCP=0 TF_NEED_CUDA=0 TF_NEED_HDFS=0 TF_NEED_OPENCL_SYCL=0 TF_NEED_VERBS=0 TF_NEED_MPI=0 TF_NEED_MKL=0 TF_NEED_JEMALLOC=1 TF_ENABLE_XLA=0 TF_NEED_S3=0 TF_NEED_KAFKA=0 TF_NEED_IGNITE=0 TF_NEED_ROCM=0
 RUN cd /opt/tensorflow && yes '' | ./configure
 
 # Tensorflow build flags for rpi
-ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --copt=-march=armv7-a --copt=-mfpu=neon-vfpv4 --copt=-mfloat-abi=hard --copt=-O3 --copt=-std=c++11 --copt=-DS_IREAD=S_IRUSR --copt=-DS_IWRITE=S_IWUSR --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1 --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2 --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 --config=monolithic --copt=-funsafe-math-optimizations --copt=-ftree-vectorize --copt=-fomit-frame-pointer --copt=-DRASPBERRY_PI --config=noaws --config=nogcp --config=nohdfs --config=nokafka --config=noignite --define tensorflow_mkldnn_contraction_kernel=0"
-ENV BAZEL_EXTRA_FLAGS="--cpu=armeabi --crosstool_top=//tools/local_arm_compiler:toolchain"
+ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --copt=-march=armv7-a --copt=-mfpu=neon-vfpv4 --copt=-mfloat-abi=hard --copt=-O3 --copt=-fno-tree-pre --copt=-fpermissive --copt=-std=c++11 --copt=-DS_IREAD=S_IRUSR --copt=-DS_IWRITE=S_IWUSR --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1 --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2 --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 --config=monolithic --copt=-funsafe-math-optimizations --copt=-ftree-vectorize --copt=-fomit-frame-pointer --copt=-DRASPBERRY_PI --noincompatible_strict_action_env --config=noaws --config=nohdfs --define tensorflow_mkldnn_contraction_kernel=0 --define=raspberry_pi_with_neon=true"
+ENV BAZEL_EXTRA_FLAGS="--cpu=armeabi --crosstool_top=@local_config_arm_compiler//:toolchain"
 
 # Compile and build tensorflow lite
 RUN cd /opt/tensorflow && \
@@ -90,7 +96,6 @@ ENV CFLAGS="-L /lib -L /usr/lib --sysroot /tmp/sysroot"
 ENV CXXFLAGS="-L /lib -L /usr/lib --sysroot /tmp/sysroot"
 
 # Install GOCV
-ARG OPENCV_VERSION="4.0.1"
 ENV OPENCV_VERSION $OPENCV_VERSION
 RUN cd /tmp && \
     curl -Lo opencv.zip https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip && \
@@ -130,9 +135,8 @@ RUN cd /tmp && git clone https://github.com/google-coral/edgetpu.git && \
     rm -Rf edgetpu
 
 # Install Go
-ARG GO_ARCH="armv6l"
-ARG GO_VERSION="1.13.3"
 ENV GO_VERSION $GO_VERSION
+ARG GO_ARCH="armv6l"
 ENV GOOS=linux
 ENV GOARCH=arm
 ENV CGO_ENABLED=1

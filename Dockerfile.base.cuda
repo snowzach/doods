@@ -122,7 +122,6 @@ ENV GOPATH /go
 # Create the build directory
 RUN mkdir /build
 WORKDIR /build
-
 ADD . .
 RUN make
 
