@@ -1,4 +1,4 @@
-FROM debian:buster as builder
+FROM ubuntu:18.04 as base
 
 # Install reqs with cross compile support
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -8,18 +8,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libc6-dev libstdc++6 libusb-1.0-0
 
 # Install protoc
-RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.9.1/protoc-3.9.1-linux-x86_64.zip && \
-    unzip protoc-3.9.1-linux-x86_64.zip -d /usr/local && \
+RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.12.3/protoc-3.12.3-linux-x86_64.zip && \
+    unzip protoc-3.12.3-linux-x86_64.zip -d /usr/local && \
     rm /usr/local/readme.txt && \
-    rm protoc-3.9.1-linux-x86_64.zip
+    rm protoc-3.12.3-linux-x86_64.zip
+
+# Version Configuration
+ARG BAZEL_VERSION="0.26.1"
+ARG TF_VERSION="v1.15.3"
+ARG OPENCV_VERSION="4.3.0"
+ARG GO_VERSION="1.14.3"
 
 # Install bazel
-RUN wget https://github.com/bazelbuild/bazel/releases/download/0.27.1/bazel_0.27.1-linux-x86_64.deb && \
-    dpkg -i bazel_0.27.1-linux-x86_64.deb && \
-    rm bazel_0.27.1-linux-x86_64.deb
+ENV BAZEL_VERSION $BAZEL_VERSION
+RUN wget https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel_${BAZEL_VERSION}-linux-x86_64.deb && \
+    dpkg -i bazel_${BAZEL_VERSION}-linux-x86_64.deb && \
+    rm bazel_${BAZEL_VERSION}-linux-x86_64.deb
 
 # Download tensorflow sources
-ARG TF_VERSION="v2.1.0-rc1"
 ENV TF_VERSION $TF_VERSION
 RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git --branch $TF_VERSION --single-branch
 
@@ -28,7 +34,7 @@ ENV TF_NEED_GDR=0 TF_NEED_AWS=0 TF_NEED_GCP=0 TF_NEED_CUDA=0 TF_NEED_HDFS=0 TF_N
 RUN cd /opt/tensorflow && yes '' | ./configure
 
 # Tensorflow build flags for rpi
-ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --config monolithic --copt=-O3 --copt=-fomit-frame-pointer --copt=-mfpmath=both --copt=-mavx --copt=-msse4.2 --incompatible_no_support_tools_in_action_inputs=false --config=noaws --config=nohdfs"
+ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 -c opt --config monolithic --copt=-march=native --copt=-O3 --copt=-fomit-frame-pointer --incompatible_no_support_tools_in_action_inputs=false --config=noaws --config=nohdfs"
 ENV BAZEL_EXTRA_FLAGS=""
 
 # Compile and build tensorflow lite
@@ -50,7 +56,6 @@ RUN cd /opt/tensorflow && \
     bazel clean && rm -Rf /root/.cache
 
 # Install GOCV
-ARG OPENCV_VERSION="4.1.2"
 ENV OPENCV_VERSION $OPENCV_VERSION
 RUN cd /tmp && \
     curl -Lo opencv.zip https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip && \
@@ -92,3 +97,26 @@ RUN cd /tmp && git clone https://github.com/google-coral/edgetpu.git && \
 # Configure the Go version to be used
 ENV GO_ARCH "amd64"
 ENV GOARCH=amd64
+
+# Install Go
+ENV GO_VERSION $GO_VERSION
+RUN curl -kLo go${GO_VERSION}.linux-${GO_ARCH}.tar.gz https://dl.google.com/go/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz && \
+    tar -C /usr/local -xzf go${GO_VERSION}.linux-${GO_ARCH}.tar.gz && \
+    rm go${GO_VERSION}.linux-${GO_ARCH}.tar.gz
+
+FROM ubuntu:18.04 as builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config zip zlib1g-dev unzip wget bash-completion git curl \
+    build-essential patch g++ python python-future python3 ca-certificates \
+    libc6-dev libstdc++6 libusb-1.0-0
+
+# Copy all libraries, includes and go
+COPY --from=base /usr/local/. /usr/local/.
+COPY --from=base /opt/tensorflow /opt/tensorflow 
+
+ENV GOOS=linux
+ENV CGO_ENABLED=1
+ENV CGO_CFLAGS=-I/opt/tensorflow
+ENV PATH /usr/local/go/bin:/go/bin:${PATH}
+ENV GOPATH /go

@@ -1,7 +1,7 @@
 # DOODS
-Dedicated Open Object Detection Service - Yes, it's a backronym, so what...
+Dedicated Open Object Detection Service - Yes, it's a backronym...
 
-DOODS is a GRPC service that detects objects in images. It's designed to be run as a container, optionally remotely. 
+DOODS is a GRPC/REST service that detects objects in images. It's designed to be very easy to use, run as a container and available remotely.
 
 ## API
 The API uses gRPC to communicate but it has a REST gateway built in for ease of use. It supports both a single call RPC and a streaming interface.
@@ -16,10 +16,12 @@ The protobuf API definitations are in the `odrpc/odrpc.proto` file. There are 3 
 - DetectStream - Detect objects in a stream of images
 
 ### REST/JSON
+The services are available via rest API at these endpoints
 * `GET /version` - Get the version
 * `GET /detectors` - Get the list of configured detectors
 * `POST /detect` - Detect objects in an image
 
+For `POST /detect` it expects JSON in the following format.
 ```
 {
 	"detector_name": "default",
@@ -46,28 +48,28 @@ The result is returned as:
     ]
 }
 ```
-Perform a detection. Use the default detector. (If omitted, it will use the default)
+This will perform a detection using the detector called default. (If omitted, it will use one called default if it exists)
 The `data`, when using the REST interface is base64 encoded image data. DOODS can decode png, bmp and jpg. 
 The `detect` object allows you to specify the list of objects to detect as defined in the labels file. You can give a min percentage match.
 You can also use "*" which will match anything with a minimum percentage.
 
-Example One Liner:
+Example 1-Liner to call the API using curl with image data: 
 ```
 echo "{\"detector_name\":\"default\", \"detect\":{\"*\":60}, \"data\":\"`cat grace_hopper.png|base64 -w0`\"}" > /tmp/postdata.json && curl -d@/tmp/postdata.json -H "Content-Type: application/json" -X POST http://localhost:8080/detect
 ```
 
 ## Detectors
 You should optimally pass image data in the requested size for the detector. If not, it will be automatically resized.
-It can read BMP, PNG and JPG as well as PPM.
+It can read BMP, PNG and JPG as well as PPM. For detectors that do not specify a size (inception) you do not need to resize
 
 ### TFLite
-If you pass PPM image data in the right dimensions, it can be fed directly into tensorflow. This skips a couple steps for speed. 
+If you pass PPM image data in the right dimensions, it can be fed directly into tensorflow lite. This skips a couple steps for speed. 
 You can also specify `hwAccel: true` in the config and it will enable Coral EdgeTPU hardware acceleration. 
-You must also provide it an appropriate EdgeTPU model file.
+You must also provide it an appropriate EdgeTPU model file. There are none included with the base image.
 
 ## Compiling
 This is designed as a go module aware program and thus requires go 1.12 or better. It also relies heavily on CGO. The easiest way to compile it
-is to use the Dockerfile which will build a functioning docker image. It's a little large. 
+is to use the Dockerfile which will build a functioning docker image. It's a little large but it includes 2 models.
 
 ## Configuration
 The configuration can be specified in a number of ways. By default you can create a json file and call it with the -c option
@@ -87,31 +89,31 @@ LOGGER_LEVEL=debug
 ```
 
 ### Options:
-| Setting                        | Description                                                 | Default      |
-|--------------------------------|-------------------------------------------------------------|--------------|
-| logger.level                   | The default logging level                                   | "info"       |
-| logger.encoding                | Logging format (console or json)                            | "console"    |
-| logger.color                   | Enable color in console mode                                | true         |
-| logger.disable_caller          | Hide the caller source file and line number                 | false        |
-| logger.disable_stacktrace      | Hide a stacktrace on debug logs                             | true         |
-| ---                            | ---                                                         | ---          |
-| server.host                    | The host address to listen on (blank=all addresses)         | ""           |
-| server.port                    | The port number to listen on                                | 8080         |
-| server.tls                     | Enable https/tls                                            | false        |
-| server.devcert                 | Generate a development cert                                 | false        |
-| server.certfile                | The HTTPS/TLS server certificate                            | "server.crt" |
-| server.keyfile                 | The HTTPS/TLS server key file                               | "server.key" |
-| server.log_requests            | Log API requests                                            | true         |
-| server.profiler_enabled        | Enable the profiler                                         | false        |
-| server.profiler_path           | Where should the profiler be available                      | "/debug"     |
-| ---                            | ---                                                         | ---          |
-| pidfile                        | Write a pidfile (only if specified)                         | ""           |
-| profiler.enabled               | Enable the debug pprof interface                            | "false"      |
-| profiler.host                  | The profiler host address to listen on                      | ""           |
-| profiler.port                  | The profiler port to listen on                              | "6060"       |
-| ---                            | ---                                                         | ---          |
-| doods.auth_key                 | A pre-shared auth key. Disabled if blank                    | ""           |
-| doods.detectors                | The detector configurations                                 | <see below>  |
+| Setting                   | Description                                         | Default      |
+| ------------------------- | --------------------------------------------------- | ------------ |
+| logger.level              | The default logging level                           | "info"       |
+| logger.encoding           | Logging format (console or json)                    | "console"    |
+| logger.color              | Enable color in console mode                        | true         |
+| logger.disable_caller     | Hide the caller source file and line number         | false        |
+| logger.disable_stacktrace | Hide a stacktrace on debug logs                     | true         |
+| ---                       | ---                                                 | ---          |
+| server.host               | The host address to listen on (blank=all addresses) | ""           |
+| server.port               | The port number to listen on                        | 8080         |
+| server.tls                | Enable https/tls                                    | false        |
+| server.devcert            | Generate a development cert                         | false        |
+| server.certfile           | The HTTPS/TLS server certificate                    | "server.crt" |
+| server.keyfile            | The HTTPS/TLS server key file                       | "server.key" |
+| server.log_requests       | Log API requests                                    | true         |
+| server.profiler_enabled   | Enable the profiler                                 | false        |
+| server.profiler_path      | Where should the profiler be available              | "/debug"     |
+| ---                       | ---                                                 | ---          |
+| pidfile                   | Write a pidfile (only if specified)                 | ""           |
+| profiler.enabled          | Enable the debug pprof interface                    | "false"      |
+| profiler.host             | The profiler host address to listen on              | ""           |
+| profiler.port             | The profiler port to listen on                      | "6060"       |
+| ---                       | ---                                                 | ---          |
+| doods.auth_key            | A pre-shared auth key. Disabled if blank            | ""           |
+| doods.detectors           | The detector configurations                         | <see below>  |
 
 ### TLS/HTTPS
 You can enable https by setting the config option server.tls = true and pointing it to your keyfile and certfile.
@@ -119,7 +121,8 @@ To create a self-signed cert: `openssl req -new -newkey rsa:2048 -days 3650 -nod
 You will need to mount these in the container and adjust the config to find them. 
 
 ### Detector Config
-Detector config must be done with a configuration file. The default config includes one Tensorflow lite mobilenet detector.
+Detector config must be done with a configuration file. The default config includes one Tensorflow Lite mobilenet detector and the Tensorflow Inception model.
+This is the default config with the exception of the threads and concurrent are tuned a bit for the architecture they are running on.
 ```
 doods:
   detectors:
@@ -130,19 +133,28 @@ doods:
       numThreads: 4
       numConcurrent: 4
       hwAccel: false
-      timeout: 30s
+      timeout: 2m
+    - name: tensorflow
+      type: tensorflow
+      modelFile: models/faster_rcnn_inception_v2_coco_2018_01_28.pb
+      labelFile: models/coco_labels1.txt
+      numThreads: 4
+      numConcurrent: 4
+      hwAccel: false
+      timeout: 2m
 ```
-The default model is downloaded from google: coco_ssd_mobilenet_v1_1.0_quant_2018_06_29
+The default models are downloaded from google: coco_ssd_mobilenet_v1_1.0_quant_2018_06_29 and faster_rcnn_inception_v2_coco_2018_01_28.pb
 
 The `numThreads` option is the number of threads that will be available for compatible operations in a model
 The `numConcurrent` option sets the number of models that will be able to run at the same time. This should be 1 unless you have a beefy machine.
 The `hwAccel` option is used to specify that a hardware device should be used. The only device supported is the edgetpu currently
 If `timeout` is set than a detector (namely an edgetpu) that hangs for longer than the timeout will cause doods to error and exit. Generally this error is not recoverable and Doods needs to be restarted.
 
-
 ### Detector Types Supported
  * tflite - Tensorflow lite models - Supports Coral EdgeTPU if hwAccel: true and appropriate model is used
  * tensorflow - Tensorflow 
+
+EdgeTPU models can be downloaded from here: https://coral.ai/models/ (Use the Object Detection Models)
 
 ## Examples - Clients
 See the examples directory for sample clients
@@ -166,10 +178,10 @@ And special thanks to @lhelontra, @marianopeck and @PINTO0309 for help in buildi
 ## Docker Images
 There are several published Docker images that you can use
 
-* latest - This is a multi-arch image that points to the rpi image, aarch64 and noavx image
+* latest - This is a multi-arch image that points to the arm32 image, arm64 and noavx image
 * noavx - 64 bit x86 image that should be a highly compatible with any cpu. 
-* aarch64 - Arm 64 bit image
-* rpi - Arm 32 bit/arm7 image optimized for the Raspberry Pi
+* arm64 - Arm 64 bit image
+* arm32 - Arm 32 bit/arm7 image optimized for the Raspberry Pi
 * amd64 - 64 bit x86 image with all the fancy cpu features like avx and sse4.2
 * cuda - Support for NVidia GPUs
 
@@ -179,10 +191,10 @@ There is now NVidia GPU support with an docker image tagged cuda, to run:
 For whatever reason, it can take a good 60-80 seconds before the model finishes loading.
 
 ## Compiling
-You can compile it yourself using the native config which should optimize for whatever you have installed. 
-Make the `snowzach/doods-builder:native` image followed by the `snowzach/doods:native` image with this command:
+You can compile it yourself using the plain `Dockerfile` which should pick the optimal CPU flags for your architecture. 
+Make the `snowzach/doods:local` image with this command:
 ```
-$ make docker CONFIG=native
+$ make docker
 ```
 
 [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=QG353JUXA6BFW&source=url)
