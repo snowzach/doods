@@ -18,8 +18,10 @@ import (
 
 	"github.com/snowzach/doods/conf"
 	"github.com/snowzach/doods/detector/dconfig"
-	"github.com/snowzach/doods/detector/tflite/delegates/edgetpu"
 	"github.com/snowzach/doods/odrpc"
+
+	"github.com/snowzach/doods/detector/tflite/go-tflite"
+	"github.com/snowzach/doods/detector/tflite/go-tflite/delegates/edgetpu"
 )
 
 const (
@@ -32,8 +34,8 @@ type detector struct {
 	logger *zap.SugaredLogger
 
 	labels       map[int]string
-	model        *Model
-	inputType    TensorType
+	model        *tflite.Model
+	inputType    tflite.TensorType
 	outputFormat int
 	pool         chan *tflInterpreter
 
@@ -45,7 +47,7 @@ type detector struct {
 
 type tflInterpreter struct {
 	device *edgetpu.Device
-	*Interpreter
+	*tflite.Interpreter
 }
 
 func New(c *dconfig.DetectorConfig) (*detector, error) {
@@ -65,7 +67,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 	d.config.Labels = make([]string, 0)
 
 	// Create the model
-	d.model = NewModelFromFile(d.config.Model)
+	d.model = tflite.NewModelFromFile(d.config.Model)
 	if d.model == nil {
 		return nil, fmt.Errorf("could not load model %s", d.config.Model)
 	}
@@ -142,7 +144,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 	d.config.Width = int32(input.Dim(2))
 	d.config.Channels = int32(input.Dim(3))
 	d.inputType = input.Type()
-	if d.inputType != UInt8 {
+	if d.inputType != tflite.UInt8 {
 		return nil, fmt.Errorf("unsupported tensor input type: %s", d.inputType)
 	}
 
@@ -165,7 +167,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 		d.outputFormat = OutputFormat_1_scores
 		// Check the output types
 		tensor := interpreter.GetOutputTensor(0)
-		if tensor.Type() != UInt8 {
+		if tensor.Type() != tflite.UInt8 {
 			return nil, fmt.Errorf("unsupported tensor output type: %s", tensor.Type())
 		}
 		// Ensure the length of the labels match the detection size
@@ -179,9 +181,9 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 	return d, nil
 }
 
-func (d *detector) newInterpreter(device *edgetpu.Device) (*Interpreter, error) {
+func (d *detector) newInterpreter(device *edgetpu.Device) (*tflite.Interpreter, error) {
 	// Options
-	options := NewInterpreterOptions()
+	options := tflite.NewInterpreterOptions()
 	options.SetNumThread(d.numThreads)
 	options.SetErrorReporter(func(msg string, user_data interface{}) {
 		d.logger.Warnw("Error", "message", msg, "user_data", user_data)
@@ -196,14 +198,14 @@ func (d *detector) newInterpreter(device *edgetpu.Device) (*Interpreter, error) 
 		options.AddDelegate(etpuInstance)
 	}
 
-	interpreter := NewInterpreter(d.model, options)
+	interpreter := tflite.NewInterpreter(d.model, options)
 	if interpreter == nil {
 		return nil, fmt.Errorf("Could not create interpreter")
 	}
 
 	// Allocate
 	status := interpreter.AllocateTensors()
-	if status != OK {
+	if status != tflite.OK {
 		return nil, fmt.Errorf("interpreter allocate failed")
 	}
 
@@ -279,7 +281,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 	start := time.Now()
 
 	// Perform the detection
-	var invokeStatus Status
+	var invokeStatus tflite.Status
 	complete := make(chan struct{})
 	go func() {
 		invokeStatus = interpreter.Invoke()
@@ -301,7 +303,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 	<-complete // Complete no timeout
 
 	// Capture Errors
-	if invokeStatus != OK {
+	if invokeStatus != tflite.OK {
 		d.logger.Errorw("Detector error", "id", request.Id, "status", invokeStatus, zap.Any("device", interpreter.device))
 		return &odrpc.DetectResponse{
 			Id:    request.Id,

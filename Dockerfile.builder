@@ -14,8 +14,8 @@ RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.12.3/p
     rm protoc-3.12.3-linux-x86_64.zip
 
 # Version Configuration
-ARG BAZEL_VERSION="0.26.1"
-ARG TF_VERSION="v1.15.3"
+ARG BAZEL_VERSION="1.2.1"
+ARG TF_VERSION="d855adfc5a0195788bf5f92c3c7352e638aa1109"
 ARG OPENCV_VERSION="4.3.0"
 ARG GO_VERSION="1.14.3"
 
@@ -27,29 +27,31 @@ RUN wget https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/
 
 # Download tensorflow sources
 ENV TF_VERSION $TF_VERSION
-RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git --branch $TF_VERSION --single-branch
+#RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git --branch $TF_VERSION --single-branch
+RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git && cd /opt/tensorflow && git checkout ${TF_VERSION}
 
 # Configure tensorflow
 ENV TF_NEED_GDR=0 TF_NEED_AWS=0 TF_NEED_GCP=0 TF_NEED_CUDA=0 TF_NEED_HDFS=0 TF_NEED_OPENCL_SYCL=0 TF_NEED_VERBS=0 TF_NEED_MPI=0 TF_NEED_MKL=0 TF_NEED_JEMALLOC=1 TF_ENABLE_XLA=0 TF_NEED_S3=0 TF_NEED_KAFKA=0 TF_NEED_IGNITE=0 TF_NEED_ROCM=0
 RUN cd /opt/tensorflow && yes '' | ./configure
 
-# Tensorflow build flags for rpi
+# Tensorflow build flags
 ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 -c opt --config monolithic --copt=-march=native --copt=-O3 --copt=-fomit-frame-pointer --incompatible_no_support_tools_in_action_inputs=false --config=noaws --config=nohdfs"
-ENV BAZEL_EXTRA_FLAGS=""
+ENV BAZEL_EXTRA_FLAGS="--host_linkopt=-lm"
 
 # Compile and build tensorflow lite
 RUN cd /opt/tensorflow && \
     bazel build -c opt $BAZEL_COPT_FLAGS --verbose_failures $BAZEL_EXTRA_FLAGS //tensorflow/lite:libtensorflowlite.so && \
     install bazel-bin/tensorflow/lite/libtensorflowlite.so /usr/local/lib/libtensorflowlite.so && \
-    bazel build -c opt $BAZEL_COPT_FLAGS --verbose_failures $BAZEL_EXTRA_FLAGS //tensorflow/lite/experimental/c:libtensorflowlite_c.so && \
-    install bazel-bin/tensorflow/lite/experimental/c/libtensorflowlite_c.so /usr/local/lib/libtensorflowlite_c.so && \
+    bazel build -c opt $BAZEL_COPT_FLAGS --verbose_failures $BAZEL_EXTRA_FLAGS //tensorflow/lite/c:libtensorflowlite_c.so && \
+    install bazel-bin/tensorflow/lite/c/libtensorflowlite_c.so /usr/local/lib/libtensorflowlite_c.so && \
     mkdir -p /usr/local/include/flatbuffers && cp bazel-tensorflow/external/flatbuffers/include/flatbuffers/* /usr/local/include/flatbuffers
 
 # Compile and install tensorflow shared library
 RUN cd /opt/tensorflow && \
     bazel build -c opt $BAZEL_COPT_FLAGS --verbose_failures $BAZEL_EXTRA_FLAGS //tensorflow:libtensorflow.so && \
     install bazel-bin/tensorflow/libtensorflow.so /usr/local/lib/libtensorflow.so && \
-    ln -rs /usr/local/lib/libtensorflow.so /usr/local/lib/libtensorflow.so.1
+    ln -rs /usr/local/lib/libtensorflow.so /usr/local/lib/libtensorflow.so.1 && \
+    ln -rs /usr/local/lib/libtensorflow.so /usr/local/lib/libtensorflow.so.2
 
 # cleanup so the cache directory isn't huge
 RUN cd /opt/tensorflow && \
@@ -120,3 +122,6 @@ ENV CGO_ENABLED=1
 ENV CGO_CFLAGS=-I/opt/tensorflow
 ENV PATH /usr/local/go/bin:/go/bin:${PATH}
 ENV GOPATH /go
+
+# Switch to /build
+WORKDIR /build
