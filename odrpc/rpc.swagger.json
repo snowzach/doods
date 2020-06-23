@@ -4,10 +4,6 @@
     "title": "odrpc/rpc.proto",
     "version": "version not set"
   },
-  "schemes": [
-    "http",
-    "https"
-  ],
   "consumes": [
     "application/json"
   ],
@@ -18,12 +14,18 @@
     "/detect": {
       "post": {
         "summary": "Process an request",
-        "operationId": "Detect",
+        "operationId": "odrpc_Detect",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/odrpcDetectResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
             }
           }
         },
@@ -45,12 +47,18 @@
     "/detect/{detector_name}": {
       "post": {
         "summary": "Process an request",
-        "operationId": "Detect2",
+        "operationId": "odrpc_Detect2",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/odrpcDetectResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
             }
           }
         },
@@ -79,12 +87,18 @@
     "/detectors": {
       "get": {
         "summary": "Get Config",
-        "operationId": "GetDetectors",
+        "operationId": "odrpc_GetDetectors",
         "responses": {
           "200": {
-            "description": "",
+            "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/odrpcGetDetectorsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
             }
           }
         },
@@ -95,6 +109,36 @@
     }
   },
   "definitions": {
+    "odrpcDetectRegion": {
+      "type": "object",
+      "properties": {
+        "top": {
+          "type": "number",
+          "format": "float",
+          "title": "Coordinates"
+        },
+        "left": {
+          "type": "number",
+          "format": "float"
+        },
+        "bottom": {
+          "type": "number",
+          "format": "float"
+        },
+        "right": {
+          "type": "number",
+          "format": "float"
+        },
+        "detect": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "format": "float"
+          },
+          "title": "What to detect"
+        }
+      }
+    },
     "odrpcDetectRequest": {
       "type": "object",
       "properties": {
@@ -118,6 +162,13 @@
             "format": "float"
           },
           "title": "What to detect"
+        },
+        "regions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/odrpcDetectRegion"
+          },
+          "title": "Sub regions for detection"
         }
       },
       "title": "The Process Request"
@@ -218,6 +269,64 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/odrpcDetector"
+          }
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "runtimeError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "runtimeStreamError": {
+      "type": "object",
+      "properties": {
+        "grpc_code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "http_code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "http_status": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
           }
         }
       }

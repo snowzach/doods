@@ -14,8 +14,11 @@ import (
 	empty "github.com/golang/protobuf/ptypes/empty"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 )
@@ -29,7 +32,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type GetDetectorsResponse struct {
 	Detectors []*Detector `protobuf:"bytes,1,rep,name=detectors,proto3" json:"detectors,omitempty"`
@@ -48,7 +51,7 @@ func (m *GetDetectorsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte
 		return xxx_messageInfo_GetDetectorsResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +107,7 @@ func (m *Detector) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Detector.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -182,6 +185,8 @@ type DetectRequest struct {
 	Data Raw `protobuf:"bytes,3,opt,name=data,proto3,casttype=Raw" json:"data"`
 	// What to detect
 	Detect map[string]float32 `protobuf:"bytes,4,rep,name=detect,proto3" json:"detect,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"fixed32,2,opt,name=value,proto3"`
+	// Sub regions for detection
+	Regions []*DetectRegion `protobuf:"bytes,5,rep,name=regions,proto3" json:"regions,omitempty"`
 }
 
 func (m *DetectRequest) Reset()      { *m = DetectRequest{} }
@@ -197,7 +202,7 @@ func (m *DetectRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error
 		return xxx_messageInfo_DetectRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -244,6 +249,90 @@ func (m *DetectRequest) GetDetect() map[string]float32 {
 	return nil
 }
 
+func (m *DetectRequest) GetRegions() []*DetectRegion {
+	if m != nil {
+		return m.Regions
+	}
+	return nil
+}
+
+type DetectRegion struct {
+	// Coordinates
+	Top    float32 `protobuf:"fixed32,1,opt,name=top,proto3" json:"top"`
+	Left   float32 `protobuf:"fixed32,2,opt,name=left,proto3" json:"left"`
+	Bottom float32 `protobuf:"fixed32,3,opt,name=bottom,proto3" json:"bottom"`
+	Right  float32 `protobuf:"fixed32,4,opt,name=right,proto3" json:"right"`
+	// What to detect
+	Detect map[string]float32 `protobuf:"bytes,5,rep,name=detect,proto3" json:"detect,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"fixed32,2,opt,name=value,proto3"`
+}
+
+func (m *DetectRegion) Reset()      { *m = DetectRegion{} }
+func (*DetectRegion) ProtoMessage() {}
+func (*DetectRegion) Descriptor() ([]byte, []int) {
+	return fileDescriptor_edafdb9f55df517e, []int{3}
+}
+func (m *DetectRegion) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *DetectRegion) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_DetectRegion.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *DetectRegion) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DetectRegion.Merge(m, src)
+}
+func (m *DetectRegion) XXX_Size() int {
+	return m.Size()
+}
+func (m *DetectRegion) XXX_DiscardUnknown() {
+	xxx_messageInfo_DetectRegion.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DetectRegion proto.InternalMessageInfo
+
+func (m *DetectRegion) GetTop() float32 {
+	if m != nil {
+		return m.Top
+	}
+	return 0
+}
+
+func (m *DetectRegion) GetLeft() float32 {
+	if m != nil {
+		return m.Left
+	}
+	return 0
+}
+
+func (m *DetectRegion) GetBottom() float32 {
+	if m != nil {
+		return m.Bottom
+	}
+	return 0
+}
+
+func (m *DetectRegion) GetRight() float32 {
+	if m != nil {
+		return m.Right
+	}
+	return 0
+}
+
+func (m *DetectRegion) GetDetect() map[string]float32 {
+	if m != nil {
+		return m.Detect
+	}
+	return nil
+}
+
 // Area for detection
 type Detection struct {
 	// Coordinates
@@ -258,7 +347,7 @@ type Detection struct {
 func (m *Detection) Reset()      { *m = Detection{} }
 func (*Detection) ProtoMessage() {}
 func (*Detection) Descriptor() ([]byte, []int) {
-	return fileDescriptor_edafdb9f55df517e, []int{3}
+	return fileDescriptor_edafdb9f55df517e, []int{4}
 }
 func (m *Detection) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -268,7 +357,7 @@ func (m *Detection) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Detection.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -341,7 +430,7 @@ type DetectResponse struct {
 func (m *DetectResponse) Reset()      { *m = DetectResponse{} }
 func (*DetectResponse) ProtoMessage() {}
 func (*DetectResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_edafdb9f55df517e, []int{4}
+	return fileDescriptor_edafdb9f55df517e, []int{5}
 }
 func (m *DetectResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -351,7 +440,7 @@ func (m *DetectResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return xxx_messageInfo_DetectResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -396,6 +485,8 @@ func init() {
 	proto.RegisterType((*Detector)(nil), "odrpc.Detector")
 	proto.RegisterType((*DetectRequest)(nil), "odrpc.DetectRequest")
 	proto.RegisterMapType((map[string]float32)(nil), "odrpc.DetectRequest.DetectEntry")
+	proto.RegisterType((*DetectRegion)(nil), "odrpc.DetectRegion")
+	proto.RegisterMapType((map[string]float32)(nil), "odrpc.DetectRegion.DetectEntry")
 	proto.RegisterType((*Detection)(nil), "odrpc.Detection")
 	proto.RegisterType((*DetectResponse)(nil), "odrpc.DetectResponse")
 }
@@ -403,52 +494,55 @@ func init() {
 func init() { proto.RegisterFile("odrpc/rpc.proto", fileDescriptor_edafdb9f55df517e) }
 
 var fileDescriptor_edafdb9f55df517e = []byte{
-	// 713 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x54, 0xbd, 0x6b, 0xdc, 0x4a,
-	0x10, 0xbf, 0xd5, 0x7d, 0xd8, 0x37, 0x3e, 0x7f, 0xb0, 0xf8, 0xf9, 0xe9, 0x9d, 0x8d, 0x74, 0xc8,
-	0xcd, 0x61, 0xb0, 0x64, 0xfc, 0x1a, 0x3f, 0x77, 0xef, 0x88, 0x49, 0x97, 0x62, 0x43, 0x08, 0xb8,
-	0x09, 0x3a, 0x69, 0x7d, 0x27, 0x72, 0xa7, 0x55, 0xa4, 0xbd, 0x98, 0x4b, 0x08, 0x84, 0xd4, 0x29,
-	0x02, 0xf9, 0x27, 0x42, 0xfe, 0x92, 0x94, 0x86, 0x34, 0x26, 0x85, 0x88, 0xe5, 0x14, 0xe1, 0x2a,
-	0xd7, 0xa9, 0xc2, 0x7e, 0xc8, 0x3e, 0x1b, 0x37, 0x69, 0xb4, 0xf3, 0xfb, 0xed, 0x6f, 0x67, 0x67,
-	0x66, 0x67, 0x04, 0xab, 0x2c, 0x4c, 0x93, 0xc0, 0x4b, 0x93, 0xc0, 0x4d, 0x52, 0xc6, 0x19, 0xae,
-	0x4b, 0xa2, 0xbd, 0x35, 0x60, 0x6c, 0x30, 0xa2, 0x9e, 0x9f, 0x44, 0x9e, 0x1f, 0xc7, 0x8c, 0xfb,
-	0x3c, 0x62, 0x71, 0xa6, 0x44, 0xed, 0x4d, 0xbd, 0x2b, 0x51, 0x7f, 0x72, 0xe2, 0xd1, 0x71, 0xc2,
-	0xa7, 0x7a, 0x73, 0x77, 0x10, 0xf1, 0xe1, 0xa4, 0xef, 0x06, 0x6c, 0xec, 0x0d, 0xd8, 0x80, 0xdd,
-	0xa8, 0x04, 0x92, 0x40, 0x5a, 0x4a, 0xee, 0x1c, 0xc1, 0xfa, 0x43, 0xca, 0x1f, 0x50, 0x4e, 0x03,
-	0xce, 0xd2, 0x8c, 0xd0, 0x2c, 0x61, 0x71, 0x46, 0xf1, 0x2e, 0x34, 0xc3, 0x92, 0x34, 0x51, 0xa7,
-	0xda, 0x5d, 0xda, 0x5f, 0x75, 0x65, 0x70, 0x6e, 0x29, 0x26, 0x37, 0x0a, 0xe7, 0x33, 0x82, 0xc5,
-	0x92, 0xc7, 0x18, 0x6a, 0xb1, 0x3f, 0xa6, 0x26, 0xea, 0xa0, 0x6e, 0x93, 0x48, 0x5b, 0x70, 0x7c,
-	0x9a, 0x50, 0xd3, 0x50, 0x9c, 0xb0, 0xf1, 0x3a, 0xd4, 0xc7, 0x2c, 0xa4, 0x23, 0xb3, 0x2a, 0x49,
-	0x05, 0xf0, 0x06, 0x34, 0x46, 0x7e, 0x9f, 0x8e, 0x32, 0xb3, 0xd6, 0xa9, 0x76, 0x9b, 0x44, 0x23,
-	0xa1, 0x3e, 0x8d, 0x42, 0x3e, 0x34, 0xeb, 0x1d, 0xd4, 0xad, 0x13, 0x05, 0x84, 0x7a, 0x48, 0xa3,
-	0xc1, 0x90, 0x9b, 0x0d, 0x49, 0x6b, 0x84, 0xdb, 0xb0, 0x18, 0x0c, 0xfd, 0x38, 0x16, 0x7e, 0x16,
-	0xe4, 0xce, 0x35, 0x76, 0x72, 0x04, 0xcb, 0x2a, 0x58, 0x42, 0x5f, 0x4c, 0x68, 0xc6, 0xf1, 0x0a,
-	0x18, 0x51, 0xa8, 0xe3, 0x35, 0xa2, 0x10, 0x6f, 0xc3, 0x72, 0x99, 0xdb, 0x33, 0x99, 0x8a, 0x0a,
-	0xbb, 0x55, 0x92, 0x8f, 0x44, 0x4a, 0xdb, 0x50, 0x0b, 0x7d, 0xee, 0xcb, 0xe8, 0x5b, 0xbd, 0xd5,
-	0x59, 0x6e, 0x4b, 0xfc, 0x2b, 0xb7, 0xab, 0xc4, 0x3f, 0x25, 0x12, 0xe0, 0x03, 0x68, 0xa8, 0x43,
-	0x32, 0x9b, 0xa5, 0xfd, 0xce, 0xad, 0x22, 0xea, 0xfb, 0x35, 0x3a, 0x8a, 0x79, 0x3a, 0x25, 0x5a,
-	0xdf, 0xfe, 0x0f, 0x96, 0xe6, 0x68, 0xbc, 0x06, 0xd5, 0xe7, 0x74, 0xaa, 0x63, 0x14, 0xa6, 0x28,
-	0xc8, 0x4b, 0x7f, 0x34, 0x51, 0xc1, 0x19, 0x44, 0x81, 0x43, 0xe3, 0x00, 0x39, 0xdf, 0x10, 0x34,
-	0xd5, 0xd9, 0x88, 0xc5, 0xf8, 0x1f, 0xa8, 0x72, 0x96, 0xc8, 0x93, 0x46, 0x6f, 0x61, 0x96, 0xdb,
-	0x02, 0x12, 0xf1, 0xc1, 0x5b, 0x50, 0x1b, 0xd1, 0x13, 0xae, 0x3c, 0xf4, 0x16, 0x45, 0x0a, 0x02,
-	0x13, 0xf9, 0xc5, 0x0e, 0x34, 0xfa, 0x8c, 0x73, 0x36, 0x96, 0x29, 0x1a, 0x3d, 0x98, 0xe5, 0xb6,
-	0x66, 0x88, 0x5e, 0xb1, 0x0d, 0xf5, 0x54, 0x96, 0xbf, 0x26, 0x25, 0xcd, 0x59, 0x6e, 0x2b, 0x82,
-	0xa8, 0x45, 0x08, 0xe4, 0x03, 0xca, 0x67, 0x6b, 0x2a, 0x81, 0x24, 0x88, 0x5a, 0xb0, 0x0b, 0x10,
-	0xb0, 0xf8, 0x24, 0x0a, 0x69, 0x1c, 0x50, 0xf9, 0x8a, 0x46, 0x6f, 0x65, 0x96, 0xdb, 0x73, 0x2c,
-	0x99, 0xb3, 0x9d, 0x21, 0xac, 0x94, 0xc5, 0xd3, 0xbd, 0x7a, 0xf7, 0xf5, 0xf6, 0x00, 0xc2, 0x32,
-	0xfb, 0xcc, 0x34, 0x64, 0xdd, 0xd7, 0x6e, 0xd5, 0x3d, 0x62, 0x31, 0x99, 0xd3, 0x88, 0x52, 0xd2,
-	0x34, 0x65, 0x69, 0xd9, 0x89, 0x12, 0xec, 0xbf, 0x37, 0x40, 0xcd, 0x23, 0x7e, 0x0a, 0xad, 0xf9,
-	0x29, 0xc1, 0x1b, 0xae, 0x1a, 0x41, 0xb7, 0x1c, 0x2e, 0xf7, 0x48, 0x8c, 0x60, 0x7b, 0x53, 0xdf,
-	0x72, 0xdf, 0x48, 0x39, 0xf8, 0xdd, 0xd7, 0x1f, 0x1f, 0x8d, 0x16, 0x06, 0xef, 0x7a, 0x6e, 0xf0,
-	0x00, 0x1a, 0x4a, 0x88, 0xd7, 0xef, 0x6b, 0x8c, 0xf6, 0x5f, 0x77, 0x58, 0xed, 0x6a, 0x4f, 0xba,
-	0xda, 0x71, 0x16, 0xb4, 0xab, 0x43, 0xb4, 0x73, 0xbc, 0xe5, 0xfc, 0xad, 0x91, 0xf7, 0xfa, 0x56,
-	0xf3, 0xbe, 0x39, 0x44, 0x3b, 0xf8, 0x7f, 0x68, 0x29, 0x1f, 0x8f, 0x79, 0x4a, 0xfd, 0xf1, 0x9f,
-	0x5d, 0x57, 0xe9, 0xa2, 0x3d, 0xd4, 0x7b, 0x72, 0x76, 0x61, 0x55, 0xce, 0x2f, 0xac, 0xca, 0xd5,
-	0x85, 0x85, 0xde, 0x16, 0x16, 0xfa, 0x54, 0x58, 0xe8, 0x4b, 0x61, 0xa1, 0xb3, 0xc2, 0x42, 0xdf,
-	0x0b, 0x0b, 0xfd, 0x2c, 0xac, 0xca, 0x55, 0x61, 0xa1, 0x0f, 0x97, 0x56, 0xe5, 0xec, 0xd2, 0xaa,
-	0x9c, 0x5f, 0x5a, 0x95, 0x63, 0x7b, 0xee, 0x7f, 0x94, 0xc5, 0xec, 0xf4, 0x95, 0x1f, 0x0c, 0xbd,
-	0x90, 0xb1, 0x30, 0xf3, 0xe4, 0x5d, 0xfd, 0x86, 0xac, 0xe1, 0xbf, 0xbf, 0x03, 0x00, 0x00, 0xff,
-	0xff, 0x34, 0xec, 0xef, 0x48, 0x0c, 0x05, 0x00, 0x00,
+	// 758 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x54, 0xbf, 0x6f, 0xdb, 0x46,
+	0x14, 0xd6, 0x51, 0xbf, 0xac, 0x67, 0xf9, 0x07, 0xae, 0xae, 0xcb, 0xca, 0x06, 0x29, 0xd0, 0x8b,
+	0x60, 0xc0, 0xa4, 0xe1, 0x0e, 0x75, 0xbd, 0x55, 0xa8, 0xd1, 0xad, 0xc3, 0x15, 0x45, 0x01, 0x2f,
+	0x05, 0x45, 0x9e, 0x29, 0xa2, 0x12, 0x8f, 0x25, 0x4f, 0x35, 0x94, 0x20, 0x80, 0x91, 0x39, 0x01,
+	0x02, 0xe4, 0x9f, 0x08, 0xf2, 0x97, 0x64, 0x34, 0x90, 0xc5, 0xc8, 0x20, 0xc4, 0x72, 0x86, 0x40,
+	0x93, 0xe7, 0x4c, 0xc1, 0xfd, 0xa0, 0x2d, 0x1b, 0x5a, 0x82, 0x0c, 0x59, 0x78, 0xf7, 0x7d, 0xf7,
+	0xdd, 0xbb, 0x7b, 0x1f, 0xef, 0x3d, 0x58, 0x63, 0x61, 0x96, 0x06, 0x5e, 0x96, 0x06, 0x6e, 0x9a,
+	0x31, 0xce, 0x70, 0x55, 0x12, 0xad, 0xed, 0x88, 0xb1, 0x68, 0x40, 0x3d, 0x3f, 0x8d, 0x3d, 0x3f,
+	0x49, 0x18, 0xf7, 0x79, 0xcc, 0x92, 0x5c, 0x89, 0x5a, 0x5b, 0x7a, 0x55, 0xa2, 0xde, 0xe8, 0xd4,
+	0xa3, 0xc3, 0x94, 0x8f, 0xf5, 0xe2, 0x5e, 0x14, 0xf3, 0xfe, 0xa8, 0xe7, 0x06, 0x6c, 0xe8, 0x45,
+	0x2c, 0x62, 0x77, 0x2a, 0x81, 0x24, 0x90, 0x33, 0x25, 0x77, 0x8e, 0x61, 0xe3, 0x77, 0xca, 0x7f,
+	0xa3, 0x9c, 0x06, 0x9c, 0x65, 0x39, 0xa1, 0x79, 0xca, 0x92, 0x9c, 0xe2, 0x3d, 0x68, 0x84, 0x05,
+	0x69, 0xa2, 0x76, 0xb9, 0xb3, 0x7c, 0xb0, 0xe6, 0xca, 0xcb, 0xb9, 0x85, 0x98, 0xdc, 0x29, 0x9c,
+	0xd7, 0x08, 0x96, 0x0a, 0x1e, 0x63, 0xa8, 0x24, 0xfe, 0x90, 0x9a, 0xa8, 0x8d, 0x3a, 0x0d, 0x22,
+	0xe7, 0x82, 0xe3, 0xe3, 0x94, 0x9a, 0x86, 0xe2, 0xc4, 0x1c, 0x6f, 0x40, 0x75, 0xc8, 0x42, 0x3a,
+	0x30, 0xcb, 0x92, 0x54, 0x00, 0x6f, 0x42, 0x6d, 0xe0, 0xf7, 0xe8, 0x20, 0x37, 0x2b, 0xed, 0x72,
+	0xa7, 0x41, 0x34, 0x12, 0xea, 0xb3, 0x38, 0xe4, 0x7d, 0xb3, 0xda, 0x46, 0x9d, 0x2a, 0x51, 0x40,
+	0xa8, 0xfb, 0x34, 0x8e, 0xfa, 0xdc, 0xac, 0x49, 0x5a, 0x23, 0xdc, 0x82, 0xa5, 0xa0, 0xef, 0x27,
+	0x89, 0x88, 0x53, 0x97, 0x2b, 0xb7, 0xd8, 0x79, 0x6e, 0xc0, 0x8a, 0xba, 0x2c, 0xa1, 0xff, 0x8d,
+	0x68, 0xce, 0xf1, 0x2a, 0x18, 0x71, 0xa8, 0xef, 0x6b, 0xc4, 0x21, 0xde, 0x81, 0x95, 0x22, 0xb7,
+	0x7f, 0x64, 0x2a, 0xea, 0xda, 0xcd, 0x82, 0xfc, 0x43, 0xa4, 0xb4, 0x03, 0x95, 0xd0, 0xe7, 0xbe,
+	0xbc, 0x7d, 0xb3, 0xbb, 0x36, 0x9b, 0xd8, 0x12, 0x7f, 0x9a, 0xd8, 0x65, 0xe2, 0x9f, 0x11, 0x09,
+	0xf0, 0x21, 0xd4, 0xd4, 0x26, 0x99, 0xcd, 0xf2, 0x41, 0xfb, 0x9e, 0x89, 0xfa, 0x7c, 0x8d, 0x8e,
+	0x13, 0x9e, 0x8d, 0x89, 0xd6, 0xe3, 0x3d, 0xa8, 0x67, 0x34, 0x12, 0xbf, 0xdd, 0xac, 0xca, 0xad,
+	0xdf, 0x3d, 0xd8, 0x2a, 0xd6, 0x48, 0xa1, 0x69, 0xfd, 0x02, 0xcb, 0x73, 0x51, 0xf0, 0x3a, 0x94,
+	0xff, 0xa5, 0x63, 0x9d, 0x92, 0x98, 0x0a, 0xff, 0xfe, 0xf7, 0x07, 0x23, 0x95, 0x8b, 0x41, 0x14,
+	0x38, 0x32, 0x0e, 0x91, 0x73, 0x6e, 0x40, 0x73, 0x3e, 0x28, 0xfe, 0x11, 0xca, 0x9c, 0xa5, 0x72,
+	0xb3, 0xd1, 0xad, 0xcf, 0x26, 0xb6, 0x80, 0x44, 0x7c, 0xf0, 0x36, 0x54, 0x06, 0xf4, 0x94, 0xab,
+	0x20, 0xdd, 0x25, 0x91, 0xb4, 0xc0, 0x44, 0x7e, 0xb1, 0x03, 0xb5, 0x1e, 0xe3, 0x9c, 0x0d, 0xa5,
+	0x29, 0x46, 0x17, 0x66, 0x13, 0x5b, 0x33, 0x44, 0x8f, 0xd8, 0x86, 0x6a, 0x26, 0x7f, 0x58, 0x45,
+	0x4a, 0x1a, 0xb3, 0x89, 0xad, 0x08, 0xa2, 0x06, 0xfc, 0xf3, 0xad, 0x65, 0x2a, 0x6f, 0x7b, 0x41,
+	0xde, 0x8b, 0x1c, 0xfb, 0x1a, 0x0b, 0xde, 0x21, 0x68, 0xa8, 0xbd, 0xdf, 0x3e, 0x7f, 0x1b, 0xaa,
+	0xf2, 0xc9, 0xcb, 0x87, 0xde, 0x50, 0x02, 0x49, 0x10, 0x35, 0x60, 0x17, 0x20, 0x60, 0xc9, 0x69,
+	0x1c, 0xd2, 0x24, 0xa0, 0xf2, 0xdd, 0x1b, 0xdd, 0xd5, 0xd9, 0xc4, 0x9e, 0x63, 0xc9, 0xdc, 0xdc,
+	0xe9, 0xc3, 0x6a, 0xe1, 0x9d, 0xae, 0xee, 0x87, 0xef, 0x7d, 0x1f, 0x20, 0x2c, 0xb2, 0xcf, 0x4d,
+	0x43, 0xda, 0xbe, 0x7e, 0xcf, 0x76, 0xf1, 0xd6, 0xe6, 0x34, 0xc2, 0x4a, 0x9a, 0x65, 0x2c, 0x2b,
+	0x6a, 0x57, 0x82, 0x83, 0x67, 0x06, 0xa8, 0x0e, 0x86, 0xff, 0x86, 0xe6, 0x7c, 0x5f, 0xc1, 0x9b,
+	0xae, 0x6a, 0x5a, 0x6e, 0xd1, 0x8e, 0xdc, 0x63, 0xd1, 0xb4, 0x5a, 0x5b, 0xfa, 0x94, 0x45, 0x4d,
+	0xc8, 0xc1, 0x4f, 0xdf, 0x7e, 0x78, 0x69, 0x34, 0x31, 0x78, 0xb7, 0x9d, 0x06, 0x47, 0x50, 0x53,
+	0x42, 0xbc, 0xb1, 0xa8, 0x94, 0x5a, 0xdf, 0x3f, 0x60, 0x75, 0xa8, 0x7d, 0x19, 0x6a, 0xd7, 0xa9,
+	0xeb, 0x50, 0x47, 0x68, 0xf7, 0x64, 0xdb, 0xf9, 0x41, 0x23, 0xef, 0xf1, 0xbd, 0x72, 0x7f, 0x72,
+	0x84, 0x76, 0xf1, 0xaf, 0x45, 0x51, 0xfc, 0xc9, 0x33, 0xea, 0x0f, 0xbf, 0xec, 0xb8, 0x52, 0x07,
+	0xed, 0xa3, 0xee, 0x5f, 0x17, 0x57, 0x56, 0xe9, 0xf2, 0xca, 0x2a, 0xdd, 0x5c, 0x59, 0xe8, 0x7c,
+	0x6a, 0xa1, 0x57, 0x53, 0x0b, 0xbd, 0x99, 0x5a, 0xe8, 0x62, 0x6a, 0xa1, 0xf7, 0x53, 0x0b, 0x7d,
+	0x9c, 0x5a, 0xa5, 0x9b, 0xa9, 0x85, 0x5e, 0x5c, 0x5b, 0xa5, 0x8b, 0x6b, 0xab, 0x74, 0x79, 0x6d,
+	0x95, 0x4e, 0xec, 0xb9, 0x0e, 0x9e, 0x27, 0xec, 0xec, 0x91, 0x1f, 0xf4, 0xbd, 0x90, 0xb1, 0x30,
+	0xf7, 0xe4, 0x59, 0xbd, 0x9a, 0xf4, 0xf0, 0xa7, 0xcf, 0x01, 0x00, 0x00, 0xff, 0xff, 0x51, 0x05,
+	0xad, 0x44, 0x3e, 0x06, 0x00, 0x00,
 }
 
 func (this *GetDetectorsResponse) Equal(that interface{}) bool {
@@ -553,6 +647,55 @@ func (this *DetectRequest) Equal(that interface{}) bool {
 		return false
 	}
 	if !bytes.Equal(this.Data, that1.Data) {
+		return false
+	}
+	if len(this.Detect) != len(that1.Detect) {
+		return false
+	}
+	for i := range this.Detect {
+		if this.Detect[i] != that1.Detect[i] {
+			return false
+		}
+	}
+	if len(this.Regions) != len(that1.Regions) {
+		return false
+	}
+	for i := range this.Regions {
+		if !this.Regions[i].Equal(that1.Regions[i]) {
+			return false
+		}
+	}
+	return true
+}
+func (this *DetectRegion) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*DetectRegion)
+	if !ok {
+		that2, ok := that.(DetectRegion)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if this.Top != that1.Top {
+		return false
+	}
+	if this.Left != that1.Left {
+		return false
+	}
+	if this.Bottom != that1.Bottom {
+		return false
+	}
+	if this.Right != that1.Right {
 		return false
 	}
 	if len(this.Detect) != len(that1.Detect) {
@@ -671,11 +814,40 @@ func (this *DetectRequest) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 8)
+	s := make([]string, 0, 9)
 	s = append(s, "&odrpc.DetectRequest{")
 	s = append(s, "Id: "+fmt.Sprintf("%#v", this.Id)+",\n")
 	s = append(s, "DetectorName: "+fmt.Sprintf("%#v", this.DetectorName)+",\n")
 	s = append(s, "Data: "+fmt.Sprintf("%#v", this.Data)+",\n")
+	keysForDetect := make([]string, 0, len(this.Detect))
+	for k, _ := range this.Detect {
+		keysForDetect = append(keysForDetect, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForDetect)
+	mapStringForDetect := "map[string]float32{"
+	for _, k := range keysForDetect {
+		mapStringForDetect += fmt.Sprintf("%#v: %#v,", k, this.Detect[k])
+	}
+	mapStringForDetect += "}"
+	if this.Detect != nil {
+		s = append(s, "Detect: "+mapStringForDetect+",\n")
+	}
+	if this.Regions != nil {
+		s = append(s, "Regions: "+fmt.Sprintf("%#v", this.Regions)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *DetectRegion) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 9)
+	s = append(s, "&odrpc.DetectRegion{")
+	s = append(s, "Top: "+fmt.Sprintf("%#v", this.Top)+",\n")
+	s = append(s, "Left: "+fmt.Sprintf("%#v", this.Left)+",\n")
+	s = append(s, "Bottom: "+fmt.Sprintf("%#v", this.Bottom)+",\n")
+	s = append(s, "Right: "+fmt.Sprintf("%#v", this.Right)+",\n")
 	keysForDetect := make([]string, 0, len(this.Detect))
 	for k, _ := range this.Detect {
 		keysForDetect = append(keysForDetect, k)
@@ -817,6 +989,20 @@ type OdrpcServer interface {
 	DetectStream(Odrpc_DetectStreamServer) error
 }
 
+// UnimplementedOdrpcServer can be embedded to have forward compatible implementations.
+type UnimplementedOdrpcServer struct {
+}
+
+func (*UnimplementedOdrpcServer) GetDetectors(ctx context.Context, req *empty.Empty) (*GetDetectorsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDetectors not implemented")
+}
+func (*UnimplementedOdrpcServer) Detect(ctx context.Context, req *DetectRequest) (*DetectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Detect not implemented")
+}
+func (*UnimplementedOdrpcServer) DetectStream(srv Odrpc_DetectStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method DetectStream not implemented")
+}
+
 func RegisterOdrpcServer(s *grpc.Server, srv OdrpcServer) {
 	s.RegisterService(&_Odrpc_serviceDesc, srv)
 }
@@ -910,7 +1096,7 @@ var _Odrpc_serviceDesc = grpc.ServiceDesc{
 func (m *GetDetectorsResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -918,29 +1104,36 @@ func (m *GetDetectorsResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetDetectorsResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetDetectorsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Detectors) > 0 {
-		for _, msg := range m.Detectors {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintRpc(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Detectors) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Detectors[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintRpc(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0xa
 		}
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *Detector) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -948,65 +1141,67 @@ func (m *Detector) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Detector) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Detector) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Name) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintRpc(dAtA, i, uint64(len(m.Name)))
-		i += copy(dAtA[i:], m.Name)
-	}
-	if len(m.Type) > 0 {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintRpc(dAtA, i, uint64(len(m.Type)))
-		i += copy(dAtA[i:], m.Type)
-	}
-	if len(m.Model) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintRpc(dAtA, i, uint64(len(m.Model)))
-		i += copy(dAtA[i:], m.Model)
-	}
-	if len(m.Labels) > 0 {
-		for _, s := range m.Labels {
-			dAtA[i] = 0x22
-			i++
-			l = len(s)
-			for l >= 1<<7 {
-				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
-			}
-			dAtA[i] = uint8(l)
-			i++
-			i += copy(dAtA[i:], s)
-		}
-	}
-	if m.Width != 0 {
-		dAtA[i] = 0x28
-		i++
-		i = encodeVarintRpc(dAtA, i, uint64(m.Width))
+	if m.Channels != 0 {
+		i = encodeVarintRpc(dAtA, i, uint64(m.Channels))
+		i--
+		dAtA[i] = 0x38
 	}
 	if m.Height != 0 {
-		dAtA[i] = 0x30
-		i++
 		i = encodeVarintRpc(dAtA, i, uint64(m.Height))
+		i--
+		dAtA[i] = 0x30
 	}
-	if m.Channels != 0 {
-		dAtA[i] = 0x38
-		i++
-		i = encodeVarintRpc(dAtA, i, uint64(m.Channels))
+	if m.Width != 0 {
+		i = encodeVarintRpc(dAtA, i, uint64(m.Width))
+		i--
+		dAtA[i] = 0x28
 	}
-	return i, nil
+	if len(m.Labels) > 0 {
+		for iNdEx := len(m.Labels) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Labels[iNdEx])
+			copy(dAtA[i:], m.Labels[iNdEx])
+			i = encodeVarintRpc(dAtA, i, uint64(len(m.Labels[iNdEx])))
+			i--
+			dAtA[i] = 0x22
+		}
+	}
+	if len(m.Model) > 0 {
+		i -= len(m.Model)
+		copy(dAtA[i:], m.Model)
+		i = encodeVarintRpc(dAtA, i, uint64(len(m.Model)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Type) > 0 {
+		i -= len(m.Type)
+		copy(dAtA[i:], m.Type)
+		i = encodeVarintRpc(dAtA, i, uint64(len(m.Type)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintRpc(dAtA, i, uint64(len(m.Name)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *DetectRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1014,52 +1209,140 @@ func (m *DetectRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *DetectRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *DetectRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Id) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintRpc(dAtA, i, uint64(len(m.Id)))
-		i += copy(dAtA[i:], m.Id)
-	}
-	if len(m.DetectorName) > 0 {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintRpc(dAtA, i, uint64(len(m.DetectorName)))
-		i += copy(dAtA[i:], m.DetectorName)
-	}
-	if len(m.Data) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintRpc(dAtA, i, uint64(len(m.Data)))
-		i += copy(dAtA[i:], m.Data)
-	}
-	if len(m.Detect) > 0 {
-		for k, _ := range m.Detect {
-			dAtA[i] = 0x22
-			i++
-			v := m.Detect[k]
-			mapSize := 1 + len(k) + sovRpc(uint64(len(k))) + 1 + 4
-			i = encodeVarintRpc(dAtA, i, uint64(mapSize))
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintRpc(dAtA, i, uint64(len(k)))
-			i += copy(dAtA[i:], k)
-			dAtA[i] = 0x15
-			i++
-			encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(v))))
-			i += 4
+	if len(m.Regions) > 0 {
+		for iNdEx := len(m.Regions) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Regions[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintRpc(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
 		}
 	}
-	return i, nil
+	if len(m.Detect) > 0 {
+		for k := range m.Detect {
+			v := m.Detect[k]
+			baseI := i
+			i -= 4
+			encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(v))))
+			i--
+			dAtA[i] = 0x15
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintRpc(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintRpc(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x22
+		}
+	}
+	if len(m.Data) > 0 {
+		i -= len(m.Data)
+		copy(dAtA[i:], m.Data)
+		i = encodeVarintRpc(dAtA, i, uint64(len(m.Data)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.DetectorName) > 0 {
+		i -= len(m.DetectorName)
+		copy(dAtA[i:], m.DetectorName)
+		i = encodeVarintRpc(dAtA, i, uint64(len(m.DetectorName)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Id) > 0 {
+		i -= len(m.Id)
+		copy(dAtA[i:], m.Id)
+		i = encodeVarintRpc(dAtA, i, uint64(len(m.Id)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *DetectRegion) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *DetectRegion) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *DetectRegion) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Detect) > 0 {
+		for k := range m.Detect {
+			v := m.Detect[k]
+			baseI := i
+			i -= 4
+			encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(v))))
+			i--
+			dAtA[i] = 0x15
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintRpc(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintRpc(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
+	if m.Right != 0 {
+		i -= 4
+		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Right))))
+		i--
+		dAtA[i] = 0x25
+	}
+	if m.Bottom != 0 {
+		i -= 4
+		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Bottom))))
+		i--
+		dAtA[i] = 0x1d
+	}
+	if m.Left != 0 {
+		i -= 4
+		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Left))))
+		i--
+		dAtA[i] = 0x15
+	}
+	if m.Top != 0 {
+		i -= 4
+		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Top))))
+		i--
+		dAtA[i] = 0xd
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Detection) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1067,53 +1350,59 @@ func (m *Detection) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Detection) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Detection) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Top != 0 {
-		dAtA[i] = 0xd
-		i++
-		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Top))))
-		i += 4
-	}
-	if m.Left != 0 {
-		dAtA[i] = 0x15
-		i++
-		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Left))))
-		i += 4
-	}
-	if m.Bottom != 0 {
-		dAtA[i] = 0x1d
-		i++
-		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Bottom))))
-		i += 4
-	}
-	if m.Right != 0 {
-		dAtA[i] = 0x25
-		i++
-		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Right))))
-		i += 4
+	if m.Confidence != 0 {
+		i -= 4
+		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Confidence))))
+		i--
+		dAtA[i] = 0x35
 	}
 	if len(m.Label) > 0 {
-		dAtA[i] = 0x2a
-		i++
+		i -= len(m.Label)
+		copy(dAtA[i:], m.Label)
 		i = encodeVarintRpc(dAtA, i, uint64(len(m.Label)))
-		i += copy(dAtA[i:], m.Label)
+		i--
+		dAtA[i] = 0x2a
 	}
-	if m.Confidence != 0 {
-		dAtA[i] = 0x35
-		i++
-		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Confidence))))
-		i += 4
+	if m.Right != 0 {
+		i -= 4
+		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Right))))
+		i--
+		dAtA[i] = 0x25
 	}
-	return i, nil
+	if m.Bottom != 0 {
+		i -= 4
+		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Bottom))))
+		i--
+		dAtA[i] = 0x1d
+	}
+	if m.Left != 0 {
+		i -= 4
+		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Left))))
+		i--
+		dAtA[i] = 0x15
+	}
+	if m.Top != 0 {
+		i -= 4
+		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Top))))
+		i--
+		dAtA[i] = 0xd
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *DetectResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1121,45 +1410,56 @@ func (m *DetectResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *DetectResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *DetectResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Id) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintRpc(dAtA, i, uint64(len(m.Id)))
-		i += copy(dAtA[i:], m.Id)
+	if len(m.Error) > 0 {
+		i -= len(m.Error)
+		copy(dAtA[i:], m.Error)
+		i = encodeVarintRpc(dAtA, i, uint64(len(m.Error)))
+		i--
+		dAtA[i] = 0x1a
 	}
 	if len(m.Detections) > 0 {
-		for _, msg := range m.Detections {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintRpc(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Detections) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Detections[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintRpc(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0x12
 		}
 	}
-	if len(m.Error) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintRpc(dAtA, i, uint64(len(m.Error)))
-		i += copy(dAtA[i:], m.Error)
+	if len(m.Id) > 0 {
+		i -= len(m.Id)
+		copy(dAtA[i:], m.Id)
+		i = encodeVarintRpc(dAtA, i, uint64(len(m.Id)))
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintRpc(dAtA []byte, offset int, v uint64) int {
+	offset -= sovRpc(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func (m *GetDetectorsResponse) Size() (n int) {
 	if m == nil {
@@ -1238,6 +1538,41 @@ func (m *DetectRequest) Size() (n int) {
 			n += mapEntrySize + 1 + sovRpc(uint64(mapEntrySize))
 		}
 	}
+	if len(m.Regions) > 0 {
+		for _, e := range m.Regions {
+			l = e.Size()
+			n += 1 + l + sovRpc(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *DetectRegion) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Top != 0 {
+		n += 5
+	}
+	if m.Left != 0 {
+		n += 5
+	}
+	if m.Bottom != 0 {
+		n += 5
+	}
+	if m.Right != 0 {
+		n += 5
+	}
+	if len(m.Detect) > 0 {
+		for k, v := range m.Detect {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovRpc(uint64(len(k))) + 1 + 4
+			n += mapEntrySize + 1 + sovRpc(uint64(mapEntrySize))
+		}
+	}
 	return n
 }
 
@@ -1293,14 +1628,7 @@ func (m *DetectResponse) Size() (n int) {
 }
 
 func sovRpc(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozRpc(x uint64) (n int) {
 	return sovRpc(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -1309,8 +1637,13 @@ func (this *GetDetectorsResponse) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForDetectors := "[]*Detector{"
+	for _, f := range this.Detectors {
+		repeatedStringForDetectors += strings.Replace(f.String(), "Detector", "Detector", 1) + ","
+	}
+	repeatedStringForDetectors += "}"
 	s := strings.Join([]string{`&GetDetectorsResponse{`,
-		`Detectors:` + strings.Replace(fmt.Sprintf("%v", this.Detectors), "Detector", "Detector", 1) + `,`,
+		`Detectors:` + repeatedStringForDetectors + `,`,
 		`}`,
 	}, "")
 	return s
@@ -1335,6 +1668,11 @@ func (this *DetectRequest) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForRegions := "[]*DetectRegion{"
+	for _, f := range this.Regions {
+		repeatedStringForRegions += strings.Replace(f.String(), "DetectRegion", "DetectRegion", 1) + ","
+	}
+	repeatedStringForRegions += "}"
 	keysForDetect := make([]string, 0, len(this.Detect))
 	for k, _ := range this.Detect {
 		keysForDetect = append(keysForDetect, k)
@@ -1349,6 +1687,31 @@ func (this *DetectRequest) String() string {
 		`Id:` + fmt.Sprintf("%v", this.Id) + `,`,
 		`DetectorName:` + fmt.Sprintf("%v", this.DetectorName) + `,`,
 		`Data:` + fmt.Sprintf("%v", this.Data) + `,`,
+		`Detect:` + mapStringForDetect + `,`,
+		`Regions:` + repeatedStringForRegions + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *DetectRegion) String() string {
+	if this == nil {
+		return "nil"
+	}
+	keysForDetect := make([]string, 0, len(this.Detect))
+	for k, _ := range this.Detect {
+		keysForDetect = append(keysForDetect, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForDetect)
+	mapStringForDetect := "map[string]float32{"
+	for _, k := range keysForDetect {
+		mapStringForDetect += fmt.Sprintf("%v: %v,", k, this.Detect[k])
+	}
+	mapStringForDetect += "}"
+	s := strings.Join([]string{`&DetectRegion{`,
+		`Top:` + fmt.Sprintf("%v", this.Top) + `,`,
+		`Left:` + fmt.Sprintf("%v", this.Left) + `,`,
+		`Bottom:` + fmt.Sprintf("%v", this.Bottom) + `,`,
+		`Right:` + fmt.Sprintf("%v", this.Right) + `,`,
 		`Detect:` + mapStringForDetect + `,`,
 		`}`,
 	}, "")
@@ -1373,9 +1736,14 @@ func (this *DetectResponse) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForDetections := "[]*Detection{"
+	for _, f := range this.Detections {
+		repeatedStringForDetections += strings.Replace(f.String(), "Detection", "Detection", 1) + ","
+	}
+	repeatedStringForDetections += "}"
 	s := strings.Join([]string{`&DetectResponse{`,
 		`Id:` + fmt.Sprintf("%v", this.Id) + `,`,
-		`Detections:` + strings.Replace(fmt.Sprintf("%v", this.Detections), "Detection", "Detection", 1) + `,`,
+		`Detections:` + repeatedStringForDetections + `,`,
 		`Error:` + fmt.Sprintf("%v", this.Error) + `,`,
 		`}`,
 	}, "")
@@ -1947,6 +2315,243 @@ func (m *DetectRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.Detect[mapkey] = mapvalue
 			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Regions", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Regions = append(m.Regions, &DetectRegion{})
+			if err := m.Regions[len(m.Regions)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRpc(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *DetectRegion) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: DetectRegion: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: DetectRegion: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Top", wireType)
+			}
+			var v uint32
+			if (iNdEx + 4) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint32(encoding_binary.LittleEndian.Uint32(dAtA[iNdEx:]))
+			iNdEx += 4
+			m.Top = float32(math.Float32frombits(v))
+		case 2:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Left", wireType)
+			}
+			var v uint32
+			if (iNdEx + 4) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint32(encoding_binary.LittleEndian.Uint32(dAtA[iNdEx:]))
+			iNdEx += 4
+			m.Left = float32(math.Float32frombits(v))
+		case 3:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Bottom", wireType)
+			}
+			var v uint32
+			if (iNdEx + 4) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint32(encoding_binary.LittleEndian.Uint32(dAtA[iNdEx:]))
+			iNdEx += 4
+			m.Bottom = float32(math.Float32frombits(v))
+		case 4:
+			if wireType != 5 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Right", wireType)
+			}
+			var v uint32
+			if (iNdEx + 4) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint32(encoding_binary.LittleEndian.Uint32(dAtA[iNdEx:]))
+			iNdEx += 4
+			m.Right = float32(math.Float32frombits(v))
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Detect", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRpc
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Detect == nil {
+				m.Detect = make(map[string]float32)
+			}
+			var mapkey string
+			var mapvalue float32
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowRpc
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowRpc
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthRpc
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthRpc
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var mapvaluetemp uint32
+					if (iNdEx + 4) > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvaluetemp = uint32(encoding_binary.LittleEndian.Uint32(dAtA[iNdEx:]))
+					iNdEx += 4
+					mapvalue = math.Float32frombits(mapvaluetemp)
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipRpc(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if skippy < 0 {
+						return ErrInvalidLengthRpc
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.Detect[mapkey] = mapvalue
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRpc(dAtA[iNdEx:])
@@ -2265,6 +2870,7 @@ func (m *DetectResponse) Unmarshal(dAtA []byte) error {
 func skipRpc(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -2296,10 +2902,8 @@ func skipRpc(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -2320,55 +2924,30 @@ func skipRpc(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthRpc
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthRpc
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowRpc
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipRpc(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthRpc
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupRpc
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthRpc
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthRpc = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowRpc   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthRpc        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowRpc          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupRpc = fmt.Errorf("proto: unexpected end of group")
 )

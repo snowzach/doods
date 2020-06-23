@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/snowzach/doods/detector/tflite/delegates"
+	"github.com/snowzach/doods/detector/tflite/go-tflite/delegates"
 )
 
 const (
@@ -50,7 +50,7 @@ func New(device Device) delegates.Delegater {
 
 // Delete the delegate
 func (etpu *Delegate) Delete() {
-	C.edgetpu_free_delegate(etpu.d);
+	C.edgetpu_free_delegate(etpu.d)
 }
 
 // Return a pointer
@@ -77,7 +77,7 @@ func Verbosity(v int) {
 
 // DeviceList fetches a list of devices
 func DeviceList() ([]Device, error) {
-	
+
 	// Fetch the list of devices
 	var numDevices C.size_t
 	cDevices := C.edgetpu_list_devices(&numDevices)
@@ -85,7 +85,7 @@ func DeviceList() ([]Device, error) {
 	if cDevices == nil {
 		return []Device{}, nil
 	}
-	
+
 	// Cast the result to a Go slice
 	deviceSlice := (*[1024]C.struct_edgetpu_device)(unsafe.Pointer(cDevices))[:numDevices:numDevices]
 

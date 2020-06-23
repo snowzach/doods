@@ -5,6 +5,7 @@ RUN dpkg --add-architecture armhf && \
     apt-get update && apt-get install -y --no-install-recommends \
     pkg-config zip zlib1g-dev unzip wget bash-completion git curl \
     build-essential patch g++ python python-future python3 \
+    python-numpy python-six \
     cmake ca-certificates \
     libc6-dev:armhf libstdc++6:armhf libusb-1.0-0:armhf
 
@@ -15,8 +16,8 @@ RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.12.3/p
     rm protoc-3.12.3-linux-x86_64.zip
 
 # Version Configuration
-ARG BAZEL_VERSION="0.26.1"
-ARG TF_VERSION="v1.15.3"
+ARG BAZEL_VERSION="2.0.0"
+ARG TF_VERSION="f394a768719a55b5c351ed1ecab2ec6f16f99dd4"
 ARG OPENCV_VERSION="4.3.0"
 ARG GO_VERSION="1.14.3"
 
@@ -28,37 +29,39 @@ RUN wget https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/
 
 # Download tensorflow sources
 ENV TF_VERSION $TF_VERSION
-RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git --branch $TF_VERSION --single-branch
+#RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git --branch $TF_VERSION --single-branch
+RUN cd /opt && git clone https://github.com/tensorflow/tensorflow.git && cd /opt/tensorflow && git checkout ${TF_VERSION}
 
 # Download and configure the toolchain and patch tensorflow as needed
 ENV CROSSTOOL_COMPILER="yes"
 ENV CROSSTOOL_URL="https://releases.linaro.org/components/toolchain/binaries/5.5-2017.10/arm-linux-gnueabihf/gcc-linaro-5.5.0-2017.10-x86_64_arm-linux-gnueabihf.tar.xz"
 ENV CROSSTOOL_DIR="gcc-linaro-5.5.0-2017.10-x86_64_arm-linux-gnueabihf"
 ENV CROSSTOOL_NAME="arm-linux-gnueabihf"
-COPY tftoolchain.sh /opt/tftoolchain.sh
-RUN cd /opt/tensorflow && /opt/tftoolchain.sh
+COPY tf_arm_toolchain_patch.sh /opt/tf_arm_toolchain_patch.sh
+RUN cd /opt/tensorflow && /opt/tf_arm_toolchain_patch.sh
 
 # Configure tensorflow
 ENV TF_NEED_GDR=0 TF_NEED_AWS=0 TF_NEED_GCP=0 TF_NEED_CUDA=0 TF_NEED_HDFS=0 TF_NEED_OPENCL_SYCL=0 TF_NEED_VERBS=0 TF_NEED_MPI=0 TF_NEED_MKL=0 TF_NEED_JEMALLOC=1 TF_ENABLE_XLA=0 TF_NEED_S3=0 TF_NEED_KAFKA=0 TF_NEED_IGNITE=0 TF_NEED_ROCM=0
 RUN cd /opt/tensorflow && yes '' | ./configure
 
-# Tensorflow build flags for rpi
+# Tensorflow build flags
 ENV BAZEL_COPT_FLAGS="--local_resources 16000,16,1 --copt=-march=armv7-a --copt=-mfpu=neon-vfpv4 --copt=-mfloat-abi=hard --copt=-O3 --copt=-fno-tree-pre --copt=-fpermissive --copt=-std=c++11 --copt=-DS_IREAD=S_IRUSR --copt=-DS_IWRITE=S_IWUSR --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1 --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2 --copt=-U__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 --config=monolithic --copt=-funsafe-math-optimizations --copt=-ftree-vectorize --copt=-fomit-frame-pointer --copt=-DRASPBERRY_PI --noincompatible_strict_action_env --config=noaws --config=nohdfs --define tensorflow_mkldnn_contraction_kernel=0 --define=raspberry_pi_with_neon=true"
-ENV BAZEL_EXTRA_FLAGS="--cpu=armeabi --crosstool_top=@local_config_arm_compiler//:toolchain"
+ENV BAZEL_EXTRA_FLAGS="--cpu=armeabi --host_linkopt=-lm --crosstool_top=@local_config_arm_compiler//:toolchain"
 
 # Compile and build tensorflow lite
 RUN cd /opt/tensorflow && \
     bazel build -c opt $BAZEL_COPT_FLAGS --verbose_failures $BAZEL_EXTRA_FLAGS //tensorflow/lite:libtensorflowlite.so && \
     install bazel-bin/tensorflow/lite/libtensorflowlite.so /usr/local/lib/libtensorflowlite.so && \
-    bazel build -c opt $BAZEL_COPT_FLAGS --verbose_failures $BAZEL_EXTRA_FLAGS //tensorflow/lite/experimental/c:libtensorflowlite_c.so && \
-    install bazel-bin/tensorflow/lite/experimental/c/libtensorflowlite_c.so /usr/local/lib/libtensorflowlite_c.so && \
+    bazel build -c opt $BAZEL_COPT_FLAGS --verbose_failures $BAZEL_EXTRA_FLAGS //tensorflow/lite/c:libtensorflowlite_c.so && \
+    install bazel-bin/tensorflow/lite/c/libtensorflowlite_c.so /usr/local/lib/libtensorflowlite_c.so && \
     mkdir -p /usr/local/include/flatbuffers && cp bazel-tensorflow/external/flatbuffers/include/flatbuffers/* /usr/local/include/flatbuffers
 
 # Compile and install tensorflow shared library
 RUN cd /opt/tensorflow && \
     bazel build -c opt $BAZEL_COPT_FLAGS --verbose_failures $BAZEL_EXTRA_FLAGS //tensorflow:libtensorflow.so && \
     install bazel-bin/tensorflow/libtensorflow.so /usr/local/lib/libtensorflow.so && \
-    ln -rs /usr/local/lib/libtensorflow.so /usr/local/lib/libtensorflow.so.1
+    ln -rs /usr/local/lib/libtensorflow.so /usr/local/lib/libtensorflow.so.1 && \
+    ln -rs /usr/local/lib/libtensorflow.so /usr/local/lib/libtensorflow.so.2
 
 # cleanup so the cache directory isn't huge
 RUN cd /opt/tensorflow && \
@@ -124,15 +127,13 @@ RUN cd /tmp && \
     make preinstall && make install && \
     cd /tmp && rm -rf opencv*
 
-# Download the edgetpu library and install it
-RUN cd /tmp && git clone https://github.com/google-coral/edgetpu.git && \
-    install edgetpu/libedgetpu/direct/armv7a/libedgetpu.so.1.0 /tmp/sysroot/usr/lib/libedgetpu.so.1.0 && \
-    ln -rs /tmp/sysroot/usr/lib/libedgetpu.so.1.0 /tmp/sysroot/usr/lib/libedgetpu.so.1 && \
+# Fetch the edgetpu library locally
+ADD libedgetpu/out/throttled/armv7a/libedgetpu.so.1.0 /tmp/sysroot/usr/lib/libedgetpu.so.1.0
+RUN ln -rs /tmp/sysroot/usr/lib/libedgetpu.so.1.0 /tmp/sysroot/usr/lib/libedgetpu.so.1 && \
     ln -rs /tmp/sysroot/usr/lib/libedgetpu.so.1.0 /tmp/sysroot/usr/lib/libedgetpu.so && \
-    mkdir -p /tmp/sysroot/usr/include/libedgetpu && \
-    install edgetpu/libedgetpu/edgetpu.h /tmp/sysroot/usr/include/libedgetpu/edgetpu.h && \
-    install edgetpu/libedgetpu/edgetpu_c.h /tmp/sysroot/usr/include/libedgetpu/edgetpu_c.h && \
-    rm -Rf edgetpu
+    mkdir -p /tmp/sysroot/usr/include/libedgetpu
+ADD libedgetpu/tflite/public/edgetpu.h /tmp/sysroot/usr/include/libedgetpu/edgetpu.h
+ADD libedgetpu/tflite/public/edgetpu_c.h /tmp/sysroot/usr/include/libedgetpu/edgetpu_c.h
 
 # Install Go
 ENV GO_VERSION $GO_VERSION
