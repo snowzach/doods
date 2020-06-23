@@ -14,8 +14,8 @@ RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.12.3/p
     rm protoc-3.12.3-linux-x86_64.zip
 
 # Version Configuration
-ARG BAZEL_VERSION="1.2.1"
-ARG TF_VERSION="d855adfc5a0195788bf5f92c3c7352e638aa1109"
+ARG BAZEL_VERSION="2.0.0"
+ARG TF_VERSION="f394a768719a55b5c351ed1ecab2ec6f16f99dd4"
 ARG OPENCV_VERSION="4.3.0"
 ARG GO_VERSION="1.14.3"
 
@@ -86,15 +86,13 @@ RUN cd /tmp && \
     make preinstall && make install && \
     cd /tmp && rm -rf opencv*
 
-# Download the edgetpu library and install it
-RUN cd /tmp && git clone https://github.com/google-coral/edgetpu.git && \
-    install edgetpu/libedgetpu/throttled/k8/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so.1.0 && \
-    ln -rs /usr/local/lib/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so.1 && \
+# Fetch the edgetpu library locally
+ADD libedgetpu/out/throttled/k8/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so.1.0
+RUN ln -rs /usr/local/lib/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so.1 && \
     ln -rs /usr/local/lib/libedgetpu.so.1.0 /usr/local/lib/libedgetpu.so && \
-    mkdir -p /usr/local/include/libedgetpu && \
-    install edgetpu/libedgetpu/edgetpu.h /usr/local/include/libedgetpu/edgetpu.h && \
-    install edgetpu/libedgetpu/edgetpu_c.h /usr/local/include/libedgetpu/edgetpu_c.h && \
-    rm -Rf edgetpu
+    mkdir -p /usr/local/include/libedgetpu
+ADD libedgetpu/tflite/public/edgetpu.h /usr/local/include/libedgetpu/edgetpu.h
+ADD libedgetpu/tflite/public/edgetpu_c.h /usr/local/include/libedgetpu/edgetpu_c.h
 
 # Configure the Go version to be used
 ENV GO_ARCH "amd64"

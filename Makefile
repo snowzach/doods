@@ -81,3 +81,8 @@ docker-arm64:
 .PHONY: docker-builder
 docker-builder:
 	docker build -t docker.io/snowzach/doods:builder -f Dockerfile.builder .
+
+.PHONY: libedgetpu
+libedgetpu:
+	git clone https://github.com/google-coral/libedgetpu || true
+	bash -c 'cd libedgetpu; DOCKER_CPUS="k8 armv7a aarch64" DOCKER_TARGETS=libedgetpu make docker-build'

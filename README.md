@@ -194,7 +194,9 @@ For whatever reason, it can take a good 60-80 seconds before the model finishes 
 You can compile it yourself using the plain `Dockerfile` which should pick the optimal CPU flags for your architecture. 
 Make the `snowzach/doods:local` image with this command:
 ```
+$ make libedgetpu
 $ make docker
 ```
+You only need to make libedgetpu once, it will download and compile it for all architectures. I hope to streamline that process into the main dockerfile at some point
 
 [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=QG353JUXA6BFW&source=url)
