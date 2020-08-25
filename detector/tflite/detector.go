@@ -26,6 +26,7 @@ import (
 
 const (
 	OutputFormat_4_TFLite_Detection_PostProcess = iota
+	OutputFormat_2_identity
 	OutputFormat_1_scores
 )
 
@@ -137,7 +138,7 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 		return nil, fmt.Errorf("unsupported input tensor count: %d", inputCount)
 	}
 	input := interpreter.GetInputTensor(0)
-	if input.Name() != "normalized_input_image_tensor" && input.Name() != "image" {
+	if input.Name() != "normalized_input_image_tensor" && input.Name() != "image" && input.Name() != "input_1" {
 		return nil, fmt.Errorf("unsupported input tensor name: %s", input.Name())
 	}
 	d.config.Height = int32(input.Dim(1))
@@ -153,16 +154,18 @@ func New(c *dconfig.DetectorConfig) (*detector, error) {
 	for x := 0; x < count; x++ {
 		tensor := interpreter.GetOutputTensor(x)
 		numDims := tensor.NumDims()
-		d.logger.Debugw("Tensor Output", "n", x, "name", tensor.Name(), "type", tensor.Type(), "num_dims", numDims, "byte_size", tensor.ByteSize())
+		d.logger.Debugw("Tensor Output", "n", x, "name", tensor.Name(), "type", tensor.Type(), "num_dims", numDims, "byte_size", tensor.ByteSize(), "quant", tensor.QuantizationParams(), "shape", tensor.Shape())
 		if numDims > 1 {
 			for y := 0; y < numDims; y++ {
-				d.logger.Debugw("Tensor Dim", "n", x, "dim", y, "dim_size", tensor.Dim(x))
+				d.logger.Debugw("Tensor Dim", "n", x, "dim", y, "dim_size", tensor.Dim(y))
 			}
 		}
 	}
 
 	if count == 4 && interpreter.GetOutputTensor(0).Name() == "TFLite_Detection_PostProcess" {
 		d.outputFormat = OutputFormat_4_TFLite_Detection_PostProcess
+	} else if count == 2 && interpreter.GetOutputTensor(0).Name() == "Identity" {
+		d.outputFormat = OutputFormat_2_identity
 	} else if count == 1 && interpreter.GetOutputTensor(0).Name() == "scores" {
 		d.outputFormat = OutputFormat_1_scores
 		// Check the output types
@@ -387,6 +390,13 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 
 			d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence, "location", fmt.Sprintf("%f,%f,%f,%f", detection.Top, detection.Left, detection.Bottom, detection.Right))
 		}
+
+	case OutputFormat_2_identity:
+
+		// https://github.com/guichristmann/edge-tpu-tiny-yolo
+		test := make([]float32, 12000)
+		interpreter.GetOutputTensor(0).CopyToBuffer(&test[0])
+		d.logger.Warnw("RESULTS", "test", test)
 
 	case OutputFormat_1_scores:
 		scores := make([]uint8, len(d.labels), len(d.labels))

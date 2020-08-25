@@ -13,7 +13,7 @@ import (
 	"unsafe"
 
 	"github.com/mattn/go-pointer"
-	"github.com/mattn/go-tflite/delegates"
+	"github.com/snowzach/doods/detector/tflite/go-tflite/delegates"
 )
 
 //go:generate stringer -type TensorType,Status -output type_string.go .
@@ -137,7 +137,7 @@ func (i *Interpreter) GetInputTensor(index int) *Tensor {
 type Status int
 
 const (
-	OK Status = 0
+	OK     Status = 0
 	FAILED Status = 1
 	Error
 )
@@ -221,6 +221,15 @@ func (t *Tensor) Data() unsafe.Pointer {
 // Name return name of the tensor.
 func (t *Tensor) Name() string {
 	return C.GoString(C.TfLiteTensorName(t.t))
+}
+
+// Shape return shape of the tensor.
+func (t *Tensor) Shape() []int {
+	shape := make([]int, t.NumDims())
+	for i := 0; i < t.NumDims(); i++ {
+		shape[i] = t.Dim(i)
+	}
+	return shape
 }
 
 // QuantizationParams implement TfLiteQuantizationParams.

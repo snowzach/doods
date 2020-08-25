@@ -6,4 +6,4 @@ if `lsusb | egrep "(1a6e:089a|18d1:9302)" > /dev/null`; then
     echo "EdgeTPU detected..."
 fi
 
-docker run -it -v $PWD:/build -v $PWD:/build ${DOCKER_EXTRA} snowzach/doods:builder bash
+docker run -it -v $PWD:/build -p 8090:8080 ${DOCKER_EXTRA} snowzach/doods:builder bash
