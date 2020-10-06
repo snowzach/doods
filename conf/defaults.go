@@ -1,6 +1,7 @@
 package conf
 
 import (
+	"net/http"
 	"strings"
 
 	config "github.com/spf13/viper"
@@ -41,6 +42,11 @@ func init() {
 	config.SetDefault("server.log_requests", true)
 	config.SetDefault("server.profiler_enabled", false)
 	config.SetDefault("server.profiler_path", "/debug")
+	config.SetDefault("server.allowed_origins", []string{"*"})
+	config.SetDefault("server.allowed_methods", []string{http.MethodHead, http.MethodOptions, http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch})
+	config.SetDefault("server.allowed_headers", []string{"*"})
+	config.SetDefault("server.allowed_credentials", false)
+	config.SetDefault("server.max_age", 300)
 
 	// Main settings
 	config.SetDefault("doods.auth_key", "")

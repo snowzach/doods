@@ -18,6 +18,7 @@ import (
 	"github.com/blendle/zapdriver"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -140,6 +141,15 @@ func New() (*Server, error) {
 			})
 		}
 	}
+
+	// CORS Config
+	r.Use(cors.New(cors.Options{
+		AllowedOrigins:   config.GetStringSlice("server.cors.allowed_origins"),
+		AllowedMethods:   config.GetStringSlice("server.cors.allowed_methods"),
+		AllowedHeaders:   config.GetStringSlice("server.cors.allowed_headers"),
+		AllowCredentials: config.GetBool("server.cors.allowed_credentials"),
+		MaxAge:           config.GetInt("server.cors.max_age"),
+	}).Handler)
 
 	// GRPC Interceptors
 	streamInterceptors := []grpc.StreamServerInterceptor{
