@@ -2,6 +2,7 @@ package detector
 
 import (
 	"context"
+	"io/ioutil"
 	"sync"
 
 	// We will support these formats
@@ -16,7 +17,7 @@ import (
 	config "github.com/spf13/viper"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
-    "google.golang.org/grpc/status"
+	"google.golang.org/grpc/status"
 
 	"github.com/snowzach/doods/conf"
 	"github.com/snowzach/doods/detector/dconfig"
@@ -115,6 +116,15 @@ func (m *Mux) Detect(ctx context.Context, request *odrpc.DetectRequest) (*odrpc.
 	detector, ok := m.detectors[request.DetectorName]
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "not found")
+	}
+
+	// If file is specified, load the data from a file
+	var err error
+	if len(request.File) != 0 {
+		request.Data, err = ioutil.ReadFile(request.File)
+		if err != nil {
+			return nil, status.Errorf(codes.NotFound, "could not open file %s", request.File)
+		}
 	}
 
 	return detector.Detect(ctx, request)

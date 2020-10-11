@@ -63,10 +63,12 @@ message DetectRequest {
     string detector_name = 2;
     // The image data
     bytes data = 3 [(gogoproto.casttype) = "Raw",(gogoproto.jsontag) = "data"];
+    // A filename
+    string file = 4;
     // What to detect
-    map<string, float> detect = 4;
+    map<string, float> detect = 5;
     // Sub regions for detection
-    repeated DetectRegion regions = 5;
+    repeated DetectRegion regions = 6;
 }
 
 message DetectRegion {

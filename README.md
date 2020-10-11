@@ -26,6 +26,7 @@ For `POST /detect` it expects JSON in the following format.
 {
 	"detector_name": "default",
 	"data": "<base64 encoded image information>",
+  "file": "<image filename (instead of data)>
 	"detect": {
 		"*": 50
 	}
@@ -50,6 +51,7 @@ The result is returned as:
 ```
 This will perform a detection using the detector called default. (If omitted, it will use one called default if it exists)
 The `data`, when using the REST interface is base64 encoded image data. DOODS can decode png, bmp and jpg. 
+You can also pass `file` in place of data to read the file from the machine DOODS is running on. `file` will override data.
 The `detect` object allows you to specify the list of objects to detect as defined in the labels file. You can give a min percentage match.
 You can also use "*" which will match anything with a minimum percentage.
 
