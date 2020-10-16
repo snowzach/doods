@@ -79,6 +79,7 @@ message DetectRegion {
     float right = 4 [(gogoproto.jsontag) = "right"];
     // What to detect
     map<string, float> detect = 5;
+    bool covers = 6;
 }
 
 // Area for detection

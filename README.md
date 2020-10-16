@@ -49,6 +49,31 @@ The result is returned as:
     ]
 }
 ```
+
+You can specify regions for specific detections:
+For `POST /detect` it expects JSON in the following format. If you specify covers than the detection region must completely cover
+the region you specify. If covers is false, if any detection is inside any part of the region it will trigger.
+```
+{
+	"detector_name": "default",
+	"data": "<base64 encoded image information>",
+  "file": "<image filename (instead of data)>",
+  "regions": [
+    {
+      "top": 0,
+      "left": 0,
+      "bottom": 1,
+      "right": 1,
+      "labels": {
+        "person": 50,
+        "*": 90
+      },
+      "covers": true
+    }
+  ]
+}
+```
+
 This will perform a detection using the detector called default. (If omitted, it will use one called default if it exists)
 The `data`, when using the REST interface is base64 encoded image data. DOODS can decode png, bmp and jpg. 
 You can also pass `file` in place of data to read the file from the machine DOODS is running on. `file` will override data.
@@ -58,6 +83,11 @@ You can also use "*" which will match anything with a minimum percentage.
 Example 1-Liner to call the API using curl with image data: 
 ```
 echo "{\"detector_name\":\"default\", \"detect\":{\"*\":60}, \"data\":\"`cat grace_hopper.png|base64 -w0`\"}" > /tmp/postdata.json && curl -d@/tmp/postdata.json -H "Content-Type: application/json" -X POST http://localhost:8080/detect
+```
+
+Another example 1-Liner specifying a region:
+````
+echo "{\"detector_name\":\"default\", \"regions\":[{\"top\":0,\"left\":0,\"bottom\":1,\"right\":1,\"detect\":{\"person\":40}}], \"data\":\"`cat grace_hopper.png|base64 -w0`\"}" > /tmp/postdata.json && curl -d@/tmp/postdata.json -H "Content-Type: application/json" -X POST http://localhost:8087/detect
 ```
 
 ## Detectors

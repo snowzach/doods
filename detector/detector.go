@@ -127,7 +127,14 @@ func (m *Mux) Detect(ctx context.Context, request *odrpc.DetectRequest) (*odrpc.
 		}
 	}
 
-	return detector.Detect(ctx, request)
+	response, err := detector.Detect(ctx, request)
+	if err != nil {
+		return response, err
+	}
+
+	m.FilterResponse(request, response)
+
+	return response, nil
 
 }
 

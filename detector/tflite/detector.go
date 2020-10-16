@@ -347,48 +347,17 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 			label, ok := d.labels[int(classes[i])]
 			if !ok {
 				d.logger.Warnw("Missing label", "index", classes[i])
+				label = "unknown"
 			}
 
-			// We have this class listed explicitly
-			if score, ok := request.Detect[label]; ok {
-				// Does it meet the score?
-				if scores[i]*100.0 < score {
-					continue
-				}
-				// We have a wildcard score
-			} else if score, ok := request.Detect["*"]; ok {
-				if scores[i]*100.0 < score {
-					continue
-				}
-			} else if len(request.Detect) != 0 {
-				// It's not listed
-				continue
-			}
-
-			detection := &odrpc.Detection{
+			detections = append(detections, &odrpc.Detection{
 				Top:        locations[(i * 4)],
 				Left:       locations[(i*4)+1],
 				Bottom:     locations[(i*4)+2],
 				Right:      locations[(i*4)+3],
 				Label:      label,
 				Confidence: scores[i] * 100.0,
-			}
-			// Cleanup the bounds
-			if detection.Top < 0 {
-				detection.Top = 0
-			}
-			if detection.Left < 0 {
-				detection.Left = 0
-			}
-			if detection.Bottom > 1 {
-				detection.Bottom = 1
-			}
-			if detection.Right > 1 {
-				detection.Right = 1
-			}
-			detections = append(detections, detection)
-
-			d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence, "location", fmt.Sprintf("%f,%f,%f,%f", detection.Top, detection.Left, detection.Bottom, detection.Right))
+			})
 		}
 
 	case OutputFormat_2_identity:
@@ -407,36 +376,17 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 			label, ok := d.labels[i]
 			if !ok {
 				d.logger.Warnw("Missing label", "index", i)
+				label = "unknown"
 			}
 
-			labelScore := 100.0 * (float32(scores[i]) / 255.0)
-
-			// We have this class listed explicitly
-			if matchScore, ok := request.Detect[label]; ok {
-				// Does it meet the score?
-				if labelScore < matchScore {
-					continue
-				}
-				// We have a wildcard score
-			} else if matchScore, ok := request.Detect["*"]; ok {
-				if labelScore < matchScore {
-					continue
-				}
-			} else if len(request.Detect) != 0 {
-				// It's not listed
-				continue
-			}
-
-			detection := &odrpc.Detection{
+			detections = append(detections, &odrpc.Detection{
 				Top:        0.0,
 				Left:       0.0,
 				Bottom:     1.0,
 				Right:      1.0,
 				Label:      label,
-				Confidence: labelScore,
-			}
-			detections = append(detections, detection)
-			d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence, "location", fmt.Sprintf("%f,%f,%f,%f", detection.Top, detection.Left, detection.Bottom, detection.Right))
+				Confidence: 100.0 * (float32(scores[i]) / 255.0),
+			})
 		}
 	}
 

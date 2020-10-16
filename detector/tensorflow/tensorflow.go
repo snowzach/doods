@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/image/bmp"
 	"google.golang.org/grpc/codes"
-    "google.golang.org/grpc/status"
+	"google.golang.org/grpc/status"
 
 	"github.com/snowzach/doods/conf"
 	"github.com/snowzach/doods/detector/dconfig"
@@ -212,48 +212,17 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 		label, ok := d.labels[int(classes[i])]
 		if !ok {
 			d.logger.Warnw("Missing label", "index", classes[i])
+			label = "unknown"
 		}
 
-		// We have this class listed explicitly
-		if score, ok := request.Detect[label]; ok {
-			// Does it meet the score?
-			if scores[i]*100.0 < score {
-				continue
-			}
-			// We have a wildcard score
-		} else if score, ok := request.Detect["*"]; ok {
-			if scores[i]*100.0 < score {
-				continue
-			}
-		} else if len(request.Detect) != 0 {
-			// It's not listed
-			continue
-		}
-
-		detection := &odrpc.Detection{
+		detections = append(detections, &odrpc.Detection{
 			Top:        locations[i][0],
 			Left:       locations[i][1],
 			Bottom:     locations[i][2],
 			Right:      locations[i][3],
 			Label:      label,
 			Confidence: scores[i] * 100.0,
-		}
-		// Cleanup the bounds
-		if detection.Top < 0 {
-			detection.Top = 0
-		}
-		if detection.Left < 0 {
-			detection.Left = 0
-		}
-		if detection.Bottom > 1 {
-			detection.Bottom = 1
-		}
-		if detection.Right > 1 {
-			detection.Right = 1
-		}
-		detections = append(detections, detection)
-
-		d.logger.Debugw("Detection", "id", request.Id, "label", detection.Label, "confidence", detection.Confidence, "location", fmt.Sprintf("%f,%f,%f,%f", detection.Top, detection.Left, detection.Bottom, detection.Right))
+		})
 	}
 
 	d.logger.Infow("Detection Complete", "id", request.Id, "duration", time.Since(start), "detections", len(detections))

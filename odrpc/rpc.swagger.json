@@ -4,6 +4,10 @@
     "title": "odrpc/rpc.proto",
     "version": "version not set"
   },
+  "schemes": [
+    "http",
+    "https"
+  ],
   "consumes": [
     "application/json"
   ],
@@ -14,18 +18,12 @@
     "/detect": {
       "post": {
         "summary": "Process an request",
-        "operationId": "odrpc_Detect",
+        "operationId": "Detect",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/odrpcDetectResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
             }
           }
         },
@@ -47,18 +45,12 @@
     "/detect/{detector_name}": {
       "post": {
         "summary": "Process an request",
-        "operationId": "odrpc_Detect2",
+        "operationId": "Detect2",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/odrpcDetectResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
             }
           }
         },
@@ -87,18 +79,12 @@
     "/detectors": {
       "get": {
         "summary": "Get Config",
-        "operationId": "odrpc_GetDetectors",
+        "operationId": "GetDetectors",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/odrpcGetDetectorsResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
             }
           }
         },
@@ -154,6 +140,10 @@
           "type": "string",
           "format": "byte",
           "title": "The image data"
+        },
+        "file": {
+          "type": "string",
+          "title": "A filename"
         },
         "detect": {
           "type": "object",
@@ -285,27 +275,6 @@
         }
       }
     },
-    "runtimeError": {
-      "type": "object",
-      "properties": {
-        "error": {
-          "type": "string"
-        },
-        "code": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "message": {
-          "type": "string"
-        },
-        "details": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/protobufAny"
-          }
-        }
-      }
-    },
     "runtimeStreamError": {
       "type": "object",
       "properties": {
@@ -330,6 +299,20 @@
           }
         }
       }
+    }
+  },
+  "x-stream-definitions": {
+    "odrpcDetectResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/odrpcDetectResponse"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of odrpcDetectResponse"
     }
   }
 }
