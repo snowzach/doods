@@ -64,7 +64,7 @@ the region you specify. If covers is false, if any detection is inside any part 
       "left": 0,
       "bottom": 1,
       "right": 1,
-      "labels": {
+      "detect": {
         "person": 50,
         "*": 90
       },
