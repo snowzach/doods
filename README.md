@@ -64,7 +64,7 @@ the region you specify. If covers is false, if any detection is inside any part 
       "left": 0,
       "bottom": 1,
       "right": 1,
-      "labels": {
+      "detect": {
         "person": 50,
         "*": 90
       },
@@ -86,7 +86,7 @@ echo "{\"detector_name\":\"default\", \"detect\":{\"*\":60}, \"data\":\"`cat gra
 ```
 
 Another example 1-Liner specifying a region:
-````
+```
 echo "{\"detector_name\":\"default\", \"regions\":[{\"top\":0,\"left\":0,\"bottom\":1,\"right\":1,\"detect\":{\"person\":40}}], \"data\":\"`cat grace_hopper.png|base64 -w0`\"}" > /tmp/postdata.json && curl -d@/tmp/postdata.json -H "Content-Type: application/json" -X POST http://localhost:8087/detect
 ```
 
