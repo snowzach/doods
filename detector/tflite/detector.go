@@ -2,7 +2,6 @@ package tflite
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"image"
@@ -11,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nfnt/resize"
 	"go.uber.org/zap"
+	"gocv.io/x/gocv"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -233,41 +232,46 @@ func (d *detector) Shutdown() {
 func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*odrpc.DetectResponse, error) {
 
 	var data []byte
-	var dx, dy int32
+
+	start := time.Now()
 
 	// If this is ppm data, move it right to tensorflow
 	if ppmInfo := FindPPMData(request.Data); ppmInfo != nil && int32(ppmInfo.Width) == d.config.Width && int32(ppmInfo.Height) == d.config.Height {
-		dx, dy = d.config.Width, d.config.Height
 		// Dump data right to data input
 		data = request.Data[ppmInfo.Offset:]
 	} else {
-		// Decode the image
-		img, format, err := image.Decode(bytes.NewReader(request.Data))
+
+		img, err := gocv.IMDecode(request.Data, gocv.IMReadColor)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "could not decode image: %v", err)
+		} else if img.Empty() {
+			return nil, status.Errorf(codes.InvalidArgument, "could not read image")
 		}
+		defer img.Close()
 
 		// Resize it if necessary
-		bounds := img.Bounds()
-		dx = int32(bounds.Dx())
-		dy = int32(bounds.Dy())
-		d.logger.Debugw("Got Image", "id", request.Id, "format", format, "width", dx, "height", dy)
-		if dx != int32(d.config.Width) || dy != int32(d.config.Height) {
-			d.logger.Debugw("Resizing Image", "id", request.Id, "format", format, "width", d.config.Width, "height", d.config.Height)
-			img = resize.Resize(uint(d.config.Width), uint(d.config.Height), img, resize.NearestNeighbor)
+		dx := int32(img.Cols())
+		dy := int32(img.Rows())
+
+		d.logger.Debugw("Decoded Image", "id", request.Id, "width", dx, "height", dy, "duration", time.Now().Sub(start))
+		if dx != d.config.Width || dy != d.config.Height {
+			gocv.Resize(img, &img, image.Point{X: int(d.config.Width), Y: int(d.config.Height)}, 0, 0, gocv.InterpolationNearestNeighbor)
+			d.logger.Debugw("Resized Image", "id", request.Id, "width", d.config.Width, "height", d.config.Height, "duration", time.Now().Sub(start))
 		}
 
-		data = make([]byte, int(d.config.Width*d.config.Height*d.config.Channels))
-		for y := int32(0); y < d.config.Height; y++ {
-			for x := int32(0); x < d.config.Width; x++ {
-				col := img.At(int(x), int(y))
-				r, g, b, _ := col.RGBA()
-				data[(y*d.config.Width+x)*3+0] = byte(float64(r) / 255.0)
-				data[(y*d.config.Width+x)*3+1] = byte(float64(g) / 255.0)
-				data[(y*d.config.Width+x)*3+2] = byte(float64(b) / 255.0)
-			}
+		// Convert to RGB
+		gocv.CvtColor(img, &img, gocv.ColorBGRToRGB)
+
+		// Convert to 8-bit unsigned 3 channel if it isn't
+		if img.Type() != gocv.MatTypeCV8UC3 {
+			d.logger.Debug("Converted Colorspace", "before", img.Type(), gocv.MatTypeCV8UC3)
+			img.ConvertTo(&img, gocv.MatTypeCV8UC3)
 		}
+
+		data = img.ToBytes()
 	}
+
+	d.logger.Debugw("Image pre-processing complete", "duration", time.Now().Sub(start))
 
 	// Get an interpreter from the pool
 	interpreter := <-d.pool
@@ -281,7 +285,7 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 	input := interpreter.GetInputTensor(0)
 	input.CopyFromBuffer(data)
 
-	start := time.Now()
+	inferenceStart := time.Now()
 
 	// Perform the detection
 	var invokeStatus tflite.Status
@@ -313,6 +317,8 @@ func (d *detector) Detect(ctx context.Context, request *odrpc.DetectRequest) (*o
 			Error: "detector error",
 		}, nil
 	}
+
+	d.logger.Debugw("Inference complete", "inference_time", time.Now().Sub(inferenceStart), "duration", time.Now().Sub(start))
 
 	detections := make([]*odrpc.Detection, 0)
 

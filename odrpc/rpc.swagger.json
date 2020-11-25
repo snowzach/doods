@@ -122,6 +122,10 @@
             "format": "float"
           },
           "title": "What to detect"
+        },
+        "covers": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
