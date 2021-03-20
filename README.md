@@ -177,6 +177,10 @@ doods:
 ```
 The default models are downloaded from google: coco_ssd_mobilenet_v1_1.0_quant_2018_06_29 and faster_rcnn_inception_v2_coco_2018_01_28.pb
 
+[default/tflite model labels](https://dl.google.com/coral/canned_models/coco_labels.txt)
+
+[tensorflow model labels](https://raw.githubusercontent.com/amikelive/coco-labels/master/coco-labels-2014_2017.txt)
+
 The `numThreads` option is the number of threads that will be available for compatible operations in a model
 The `numConcurrent` option sets the number of models that will be able to run at the same time. This should be 1 unless you have a beefy machine.
 The `hwAccel` option is used to specify that a hardware device should be used. The only device supported is the edgetpu currently
