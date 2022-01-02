@@ -1,3 +1,8 @@
+# DEPRECATED!!!
+DOODS is now deprecated in favor of DOODS2... Now with more Python...
+
+https://github.com/snowzach/doods2
+
 # DOODS
 Dedicated Open Object Detection Service - Yes, it's a backronym...
 
